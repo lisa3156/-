@@ -1,0 +1,5 @@
+{
+  "name": "周边库存管理 Pro",
+  "description": "全方位的周边商品库存管理系统，支持自动补全、批量操作、销售追踪、动态统计及 Excel 导出功能。",
+  "requestFramePermissions": []
+}
