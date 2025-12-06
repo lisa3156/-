@@ -14,7 +14,8 @@ import {
   ChevronUp,
   ShoppingCart,
   CheckSquare,
-  Upload
+  Upload,
+  RefreshCw
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -25,7 +26,7 @@ const STORAGE_KEY = 'merch_tracker_cn_v1';
 const App: React.FC = () => {
   // --- State ---
   const [items, setItems] = useState<InventoryItem[]>([]);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  // Removed isFormOpen state to keep form always visible
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -178,7 +179,7 @@ const App: React.FC = () => {
     e.stopPropagation(); // Prevent row click
     setFormData(item);
     setEditingId(item.id);
-    setIsFormOpen(true);
+    // Form is always open
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -240,7 +241,6 @@ const App: React.FC = () => {
       remark: ''
     });
     setEditingId(null);
-    setIsFormOpen(false);
   };
 
   const handleSort = (field: SortField) => {
@@ -447,11 +447,11 @@ const App: React.FC = () => {
               导出 Excel
             </button>
             <button 
-              onClick={() => { resetForm(); setIsFormOpen(!isFormOpen); }}
+              onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
             >
-              {isFormOpen ? <X className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-              {isFormOpen ? '关闭表单' : '登记商品'}
+              {editingId ? <RefreshCw className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+              {editingId ? '放弃编辑' : '新建 / 重置'}
             </button>
           </div>
         </div>
@@ -483,115 +483,113 @@ const App: React.FC = () => {
           />
         </div>
 
-        {/* Input Form Area */}
-        {isFormOpen && (
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 animate-fade-in-down">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {editingId ? `编辑商品 #${editingId}` : '新商品登记'}
-              </h2>
-              {editingId && (
-                <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-700 underline">
-                  取消编辑
-                </button>
-              )}
+        {/* Input Form Area - Always Visible */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {editingId ? `编辑商品 #${editingId}` : '新商品登记'}
+            </h2>
+            {editingId && (
+              <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-700 underline">
+                取消编辑
+              </button>
+            )}
+          </div>
+          
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <InputWithSuggestions 
+              label="作品 / 系列" 
+              value={formData.series || ''} 
+              onChange={(val) => handleInputChange('series', val)}
+              suggestions={existingSeries}
+              placeholder="例如：原神"
+              required
+            />
+            <InputWithSuggestions 
+              label="角色" 
+              value={formData.character || ''} 
+              onChange={(val) => handleInputChange('character', val)}
+              suggestions={existingCharacters}
+              placeholder="例如：胡桃"
+              required
+            />
+              <InputWithSuggestions 
+              label="物品类型" 
+              value={formData.type || ''} 
+              onChange={(val) => handleInputChange('type', val)}
+              suggestions={existingTypes}
+              placeholder="例如：徽章"
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">款式</label>
+              <input 
+                type="text" 
+                value={formData.style || ''} 
+                onChange={(e) => handleInputChange('style', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                placeholder="例如：镭射票"
+              />
             </div>
             
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <InputWithSuggestions 
-                label="作品 / 系列" 
-                value={formData.series || ''} 
-                onChange={(val) => handleInputChange('series', val)}
-                suggestions={existingSeries}
-                placeholder="例如：原神"
-                required
-              />
-              <InputWithSuggestions 
-                label="角色" 
-                value={formData.character || ''} 
-                onChange={(val) => handleInputChange('character', val)}
-                suggestions={existingCharacters}
-                placeholder="例如：胡桃"
-                required
-              />
-               <InputWithSuggestions 
-                label="物品类型" 
-                value={formData.type || ''} 
-                onChange={(val) => handleInputChange('type', val)}
-                suggestions={existingTypes}
-                placeholder="例如：徽章"
-                required
-              />
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">款式</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">库存数量</label>
                 <input 
-                  type="text" 
-                  value={formData.style || ''} 
-                  onChange={(e) => handleInputChange('style', e.target.value)}
+                  type="number" 
+                  min="0"
+                  value={formData.stock || ''} 
+                  onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-                  placeholder="例如：镭射票"
+                  required
                 />
               </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">库存数量</label>
-                  <input 
-                    type="number" 
-                    min="0"
-                    value={formData.stock || ''} 
-                    onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">单价 (¥)</label>
-                  <input 
-                    type="number" 
-                    min="0"
-                    step="0.01"
-                    value={formData.price || ''} 
-                    onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-
-               <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">已出数量 (初始)</label>
-                  <input 
-                    type="number" 
-                    min="0"
-                    value={formData.sold || 0} 
-                    onChange={(e) => handleInputChange('sold', parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 bg-gray-50"
-                  />
-              </div>
-
-              <div className="lg:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">单价 (¥)</label>
                 <input 
-                  type="text" 
-                  value={formData.remark || ''} 
-                  onChange={(e) => handleInputChange('remark', e.target.value)}
+                  type="number" 
+                  min="0"
+                  step="0.01"
+                  value={formData.price || ''} 
+                  onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
-                  placeholder="可选备注..."
+                  required
                 />
               </div>
+            </div>
 
-              <div className="lg:col-span-4 flex justify-end pt-4 border-t border-gray-100">
-                <button 
-                  type="submit" 
-                  className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  {editingId ? '更新商品' : '保存商品'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">已出数量 (初始)</label>
+                <input 
+                  type="number" 
+                  min="0"
+                  value={formData.sold || 0} 
+                  onChange={(e) => handleInputChange('sold', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                />
+            </div>
+
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
+              <input 
+                type="text" 
+                value={formData.remark || ''} 
+                onChange={(e) => handleInputChange('remark', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                placeholder="可选备注..."
+              />
+            </div>
+
+            <div className="lg:col-span-4 flex justify-end pt-4 border-t border-gray-100">
+              <button 
+                type="submit" 
+                className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                {editingId ? '更新商品' : '保存商品'}
+              </button>
+            </div>
+          </form>
+        </div>
 
         {/* Filters Bar */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
