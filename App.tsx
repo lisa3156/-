@@ -15,7 +15,8 @@ import {
   ShoppingCart,
   CheckSquare,
   Upload,
-  RefreshCw
+  RefreshCw,
+  MoreHorizontal
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -407,15 +408,15 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 font-sans">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-20">
+      <header className="bg-white shadow-sm sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="w-6 h-6 text-indigo-600" />
-            <h1 className="text-xl font-bold text-gray-900">周边商品管理系统</h1>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <Package className="w-6 h-6 text-indigo-600 flex-shrink-0" />
+            <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate">周边管理</h1>
           </div>
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 md:gap-3 items-center">
              <input 
               type="file" 
               ref={fileInputRef} 
@@ -427,40 +428,44 @@ const App: React.FC = () => {
               <button 
                 onClick={handleBatchDelete}
                 className="flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 transition-colors shadow-sm"
+                title="批量删除"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                批量删除 ({selectedIds.size})
+                <Trash2 className="w-4 h-4 md:mr-2" />
+                <span className="hidden md:inline">批量删除 ({selectedIds.size})</span>
               </button>
             )}
             <button 
               onClick={triggerImport}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              title="导入 Excel"
             >
-              <Upload className="w-4 h-4 mr-2" />
-              导入 Excel
+              <Upload className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">导入</span>
             </button>
             <button 
               onClick={exportToExcel}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              title="导出 Excel"
             >
-              <Download className="w-4 h-4 mr-2" />
-              导出 Excel
+              <Download className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">导出</span>
             </button>
             <button 
               onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
             >
-              {editingId ? <RefreshCw className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
-              {editingId ? '放弃编辑' : '新建 / 重置'}
+              {editingId ? <RefreshCw className="w-4 h-4 md:mr-2" /> : <Plus className="w-4 h-4 md:mr-2" />}
+              <span className="hidden md:inline">{editingId ? '放弃编辑' : '新建'}</span>
+              <span className="md:hidden">{editingId ? '重置' : '新建'}</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
         {/* Statistics Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatsCard 
             title="库存总货值" 
             value={`¥${stats.potentialRevenue.toLocaleString()}`} 
@@ -484,19 +489,19 @@ const App: React.FC = () => {
         </div>
 
         {/* Input Form Area - Always Visible */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
-          <div className="flex justify-between items-center mb-6">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-4 md:p-6">
+          <div className="flex justify-between items-center mb-4 md:mb-6">
             <h2 className="text-lg font-semibold text-gray-900">
               {editingId ? `编辑商品 #${editingId}` : '新商品登记'}
             </h2>
             {editingId && (
               <button onClick={resetForm} className="text-sm text-gray-500 hover:text-gray-700 underline">
-                取消编辑
+                取消
               </button>
             )}
           </div>
           
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
             <InputWithSuggestions 
               label="作品 / 系列" 
               value={formData.series || ''} 
@@ -527,7 +532,7 @@ const App: React.FC = () => {
                 type="text" 
                 value={formData.style || ''} 
                 onChange={(e) => handleInputChange('style', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
                 placeholder="例如：镭射票"
               />
             </div>
@@ -540,7 +545,7 @@ const App: React.FC = () => {
                   min="0"
                   value={formData.stock || ''} 
                   onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
                   required
                 />
               </div>
@@ -552,7 +557,7 @@ const App: React.FC = () => {
                   step="0.01"
                   value={formData.price || ''} 
                   onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
                   required
                 />
               </div>
@@ -565,7 +570,7 @@ const App: React.FC = () => {
                   min="0"
                   value={formData.sold || 0} 
                   onChange={(e) => handleInputChange('sold', parseInt(e.target.value) || 0)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 bg-gray-50"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-base md:text-sm"
                 />
             </div>
 
@@ -575,7 +580,7 @@ const App: React.FC = () => {
                 type="text" 
                 value={formData.remark || ''} 
                 onChange={(e) => handleInputChange('remark', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 text-base md:text-sm"
                 placeholder="可选备注..."
               />
             </div>
@@ -583,7 +588,7 @@ const App: React.FC = () => {
             <div className="lg:col-span-4 flex justify-end pt-4 border-t border-gray-100">
               <button 
                 type="submit" 
-                className="px-6 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="w-full md:w-auto px-6 py-3 md:py-2 bg-indigo-600 text-white text-base md:text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 {editingId ? '更新商品' : '保存商品'}
               </button>
@@ -592,46 +597,46 @@ const App: React.FC = () => {
         </div>
 
         {/* Filters Bar */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative flex-1 w-full">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex flex-col md:flex-row gap-3 items-center justify-between">
+          <div className="relative w-full md:flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input 
               type="text" 
-              placeholder="搜索编号、作品、角色、类型、款式..." 
+              placeholder="搜索..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
-          <div className="flex gap-2 w-full md:w-auto flex-wrap">
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
             <select 
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
               value={filterSeries}
               onChange={(e) => setFilterSeries(e.target.value)}
             >
-              <option value="">全部作品</option>
+              <option value="">作品</option>
               {existingSeries.map(s => <option key={s} value={s}>{s}</option>)}
             </select>
             <select 
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
               value={filterCharacter}
               onChange={(e) => setFilterCharacter(e.target.value)}
             >
-              <option value="">全部角色</option>
+              <option value="">角色</option>
               {existingCharacters.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
             <select 
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500"
+              className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
             >
-              <option value="">全部类型</option>
+              <option value="">类型</option>
               {existingTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             {(filterSeries || filterCharacter || filterType || searchQuery) && (
               <button 
                 onClick={() => { setFilterSeries(''); setFilterCharacter(''); setFilterType(''); setSearchQuery(''); }}
-                className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md border border-transparent"
+                className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md border border-transparent whitespace-nowrap flex-shrink-0"
               >
                 清除
               </button>
@@ -639,8 +644,108 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Mobile: Card List View */}
+        <div className="md:hidden space-y-4">
+           {/* Mobile Select All */}
+           {filteredItems.length > 0 && (
+             <div className="flex items-center justify-between px-2 text-sm text-gray-500">
+                <label className="flex items-center space-x-2">
+                  <input 
+                    type="checkbox" 
+                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer accent-indigo-600"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                  />
+                  <span>全选本页</span>
+                </label>
+                <span>共 {filteredItems.length} 项</span>
+             </div>
+           )}
+
+           {filteredItems.map((item) => (
+             <div 
+                key={item.id}
+                onClick={(e) => handleEdit(e, item)}
+                className={`bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition-colors ${selectedIds.has(item.id) ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}`}
+             >
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex items-start gap-3">
+                     <input 
+                        type="checkbox" 
+                        className="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer accent-indigo-600"
+                        checked={selectedIds.has(item.id)}
+                        onChange={() => toggleSelectRow(item.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div>
+                        <div className="font-bold text-gray-900 text-lg leading-tight">{item.style || '无款式'}</div>
+                        <div className="text-sm text-gray-500 mt-0.5">
+                           <span>{item.character}</span>
+                           <span className="mx-1 text-gray-300">|</span> 
+                           <span>{item.series}</span>
+                        </div>
+                      </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 mb-1">
+                          {item.type}
+                    </span>
+                    <div className="text-xs text-gray-400">#{item.id}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center text-sm text-gray-600 mb-3 space-x-3">
+                    <span className="font-medium text-orange-600">¥{item.price}</span>
+                </div>
+
+                <div className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                    <div className="flex flex-col">
+                       <span className="text-xs text-gray-400">库存</span>
+                       <span className={`font-bold ${item.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>{item.stock}</span>
+                    </div>
+                    <div className="flex flex-col text-center">
+                       <span className="text-xs text-gray-400">已出</span>
+                       <span className="font-bold text-gray-900">{item.sold}</span>
+                    </div>
+                     <div className="flex flex-col text-right">
+                       <span className="text-xs text-gray-400">销售额</span>
+                       <span className="font-bold text-gray-900">¥{item.sold * item.price}</span>
+                    </div>
+                </div>
+
+                {item.remark && (
+                  <div className="mt-2 text-xs text-gray-500 italic">
+                    注: {item.remark}
+                  </div>
+                )}
+
+                <div className="mt-4 flex gap-2">
+                    <button 
+                      onClick={(e) => handleQuickSell(e, item.id)}
+                      disabled={item.stock <= 0}
+                      className="flex-1 bg-green-50 text-green-700 py-2 rounded-md text-sm font-medium hover:bg-green-100 flex justify-center items-center disabled:opacity-50"
+                    >
+                       <ShoppingCart className="w-4 h-4 mr-1 pointer-events-none" /> 售出
+                    </button>
+                    <button 
+                      onClick={(e) => handleDelete(e, item.id)}
+                      className="flex-none bg-red-50 text-red-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-red-100 flex justify-center items-center"
+                    >
+                       <Trash2 className="w-4 h-4 pointer-events-none" />
+                    </button>
+                </div>
+             </div>
+           ))}
+             {filteredItems.length === 0 && (
+              <div className="text-center py-10 text-gray-500">
+                <Package className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+                <p>暂无数据</p>
+              </div>
+            )}
+        </div>
+
+        {/* Desktop: Table View */}
+        <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
