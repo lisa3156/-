@@ -8,6 +8,8 @@ export interface InventoryItem {
   price: number;     // 单价
   sold: number;      // 已出数量
   remark: string;    // 备注
+  isOnline: boolean; // 线上上架
+  isOffline: boolean;// 线下上架
   createdAt: number;
 }
 

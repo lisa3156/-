@@ -16,7 +16,9 @@ import {
   CheckSquare,
   Upload,
   RefreshCw,
-  MoreHorizontal
+  MoreHorizontal,
+  Globe,
+  Store
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -41,7 +43,9 @@ const App: React.FC = () => {
     stock: 1,
     price: 0,
     sold: 0,
-    remark: ''
+    remark: '',
+    isOnline: false,
+    isOffline: false
   });
 
   // Filter & Search State
@@ -49,6 +53,8 @@ const App: React.FC = () => {
   const [filterSeries, setFilterSeries] = useState('');
   const [filterCharacter, setFilterCharacter] = useState('');
   const [filterType, setFilterType] = useState('');
+  const [showOnlineOnly, setShowOnlineOnly] = useState(false);
+  const [showOfflineOnly, setShowOfflineOnly] = useState(false);
   
   // Sorting State
   const [sortField, setSortField] = useState<SortField>('id');
@@ -71,6 +77,8 @@ const App: React.FC = () => {
               stock: Number(item.stock) || 0,
               sold: Number(item.sold) || 0,
               price: Number(item.price) || 0,
+              isOnline: !!item.isOnline,
+              isOffline: !!item.isOffline,
               createdAt: item.createdAt || Date.now()
             }))
             .filter((item) => !isNaN(item.id)); // Remove items with NaN IDs
@@ -84,8 +92,8 @@ const App: React.FC = () => {
     } else {
       // Seed some demo data if empty
       setItems([
-        { id: 1001, type: '徽章', style: '镭射票', character: '旅行者', series: '原神', stock: 50, price: 15, sold: 12, remark: '下周需补货', createdAt: Date.now() },
-        { id: 1002, type: '立牌', style: '15cm 站姿', character: '芙莉莲', series: '葬送的芙莉莲', stock: 20, price: 45, sold: 5, remark: '', createdAt: Date.now() },
+        { id: 1001, type: '徽章', style: '镭射票', character: '旅行者', series: '原神', stock: 50, price: 15, sold: 12, remark: '下周需补货', isOnline: true, isOffline: false, createdAt: Date.now() },
+        { id: 1002, type: '立牌', style: '15cm 站姿', character: '芙莉莲', series: '葬送的芙莉莲', stock: 20, price: 45, sold: 5, remark: '', isOnline: false, isOffline: true, createdAt: Date.now() },
       ]);
     }
   }, []);
@@ -114,8 +122,10 @@ const App: React.FC = () => {
       const matchesSeries = filterSeries ? item.series === filterSeries : true;
       const matchesCharacter = filterCharacter ? item.character === filterCharacter : true;
       const matchesType = filterType ? item.type === filterType : true;
+      const matchesOnline = showOnlineOnly ? item.isOnline : true;
+      const matchesOffline = showOfflineOnly ? item.isOffline : true;
 
-      return matchesSearch && matchesSeries && matchesCharacter && matchesType;
+      return matchesSearch && matchesSeries && matchesCharacter && matchesType && matchesOnline && matchesOffline;
     }).sort((a, b) => {
       const valA = a[sortField];
       const valB = b[sortField];
@@ -128,7 +138,7 @@ const App: React.FC = () => {
       const strB = String(valB || '');
       return sortOrder === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
     });
-  }, [items, searchQuery, filterSeries, filterCharacter, filterType, sortField, sortOrder]);
+  }, [items, searchQuery, filterSeries, filterCharacter, filterType, sortField, sortOrder, showOnlineOnly, showOfflineOnly]);
 
   // Check if all visible items are selected
   const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedIds.has(item.id));
@@ -168,6 +178,8 @@ const App: React.FC = () => {
         ...(formData as InventoryItem),
         id: newId,
         sold: formData.sold || 0,
+        isOnline: formData.isOnline || false,
+        isOffline: formData.isOffline || false,
         createdAt: Date.now()
       };
       setItems(prev => [newItem, ...prev]);
@@ -239,7 +251,9 @@ const App: React.FC = () => {
       stock: 1,
       price: 0,
       sold: 0,
-      remark: ''
+      remark: '',
+      isOnline: false,
+      isOffline: false
     });
     setEditingId(null);
   };
@@ -290,6 +304,8 @@ const App: React.FC = () => {
       '角色': item.character,
       '物品类型': item.type,
       '款式': item.style,
+      '线上上架': item.isOnline ? '是' : '否',
+      '线下上架': item.isOffline ? '是' : '否',
       '单价 (¥)': item.price,
       '库存数量': item.stock,
       '已出数量': item.sold,
@@ -354,6 +370,8 @@ const App: React.FC = () => {
             character: String(row['角色'] || ''),
             type: String(row['物品类型'] || row['类型'] || ''),
             style: String(row['款式'] || ''),
+            isOnline: String(row['线上上架']).trim() === '是',
+            isOffline: String(row['线下上架']).trim() === '是',
             price: Number(row['单价 (¥)']) || Number(row['单价']) || 0,
             stock: Number(row['库存数量']) || Number(row['库存']) || 0,
             sold: Number(row['已出数量']) || Number(row['已出']) || 0,
@@ -378,6 +396,8 @@ const App: React.FC = () => {
               style: newItemData.style || '',
               character: newItemData.character || '未命名',
               series: newItemData.series || '未分类',
+              isOnline: !!newItemData.isOnline,
+              isOffline: !!newItemData.isOffline,
               stock: newItemData.stock || 0,
               price: newItemData.price || 0,
               sold: newItemData.sold || 0,
@@ -526,7 +546,31 @@ const App: React.FC = () => {
               placeholder="例如：徽章"
               required
             />
-            <div>
+            
+            <div className="flex flex-col gap-2">
+                <div className="flex space-x-4 h-full items-end pb-2">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={formData.isOnline || false}
+                            onChange={(e) => handleInputChange('isOnline', e.target.checked)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer accent-indigo-600"
+                        />
+                        <span className="text-sm text-gray-700">线上上架</span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={formData.isOffline || false}
+                            onChange={(e) => handleInputChange('isOffline', e.target.checked)}
+                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer accent-indigo-600"
+                        />
+                        <span className="text-sm text-gray-700">线下上架</span>
+                    </label>
+                </div>
+            </div>
+
+            <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">款式</label>
               <input 
                 type="text" 
@@ -608,7 +652,7 @@ const App: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
-          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+          <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0 scrollbar-hide items-center">
             <select 
               className="px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
               value={filterSeries}
@@ -633,9 +677,36 @@ const App: React.FC = () => {
               <option value="">类型</option>
               {existingTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
-            {(filterSeries || filterCharacter || filterType || searchQuery) && (
+            
+            <label className="flex items-center space-x-1 whitespace-nowrap text-sm text-gray-700 cursor-pointer select-none">
+                <input 
+                    type="checkbox" 
+                    checked={showOnlineOnly} 
+                    onChange={(e) => setShowOnlineOnly(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded accent-indigo-600"
+                />
+                <span>仅看线上</span>
+            </label>
+            <label className="flex items-center space-x-1 whitespace-nowrap text-sm text-gray-700 cursor-pointer select-none">
+                <input 
+                    type="checkbox" 
+                    checked={showOfflineOnly} 
+                    onChange={(e) => setShowOfflineOnly(e.target.checked)}
+                    className="h-4 w-4 text-indigo-600 border-gray-300 rounded accent-indigo-600"
+                />
+                <span>仅看线下</span>
+            </label>
+
+            {(filterSeries || filterCharacter || filterType || searchQuery || showOnlineOnly || showOfflineOnly) && (
               <button 
-                onClick={() => { setFilterSeries(''); setFilterCharacter(''); setFilterType(''); setSearchQuery(''); }}
+                onClick={() => { 
+                    setFilterSeries(''); 
+                    setFilterCharacter(''); 
+                    setFilterType(''); 
+                    setSearchQuery(''); 
+                    setShowOnlineOnly(false);
+                    setShowOfflineOnly(false);
+                }}
                 className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md border border-transparent whitespace-nowrap flex-shrink-0"
               >
                 清除
@@ -686,7 +757,19 @@ const App: React.FC = () => {
                         </div>
                       </div>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex flex-col items-end">
+                    <div className="flex space-x-1 mb-1">
+                        {item.isOnline && (
+                             <span className="p-0.5 rounded bg-blue-100 text-blue-700" title="线上上架">
+                                <Globe className="w-3 h-3" />
+                             </span>
+                        )}
+                        {item.isOffline && (
+                             <span className="p-0.5 rounded bg-purple-100 text-purple-700" title="线下上架">
+                                <Store className="w-3 h-3" />
+                             </span>
+                        )}
+                    </div>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 mb-1">
                           {item.type}
                     </span>
@@ -764,6 +847,7 @@ const App: React.FC = () => {
                     { key: 'character', label: '角色' },
                     { key: 'type', label: '类型' },
                     { key: 'style', label: '款式' },
+                    { key: null, label: '上架状态' },
                     { key: 'price', label: '单价' },
                     { key: 'stock', label: '库存' },
                     { key: 'sold', label: '已出' },
@@ -827,6 +911,23 @@ const App: React.FC = () => {
                        <td className="px-4 py-4 text-sm text-gray-700 max-w-xs">
                         <div className="truncate" title={item.style}>{item.style}</div>
                         {item.remark && <div className="text-xs text-gray-400 mt-1 italic truncate" title={item.remark}>{item.remark}</div>}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm">
+                        <div className="flex space-x-1">
+                            {item.isOnline && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="线上上架">
+                                    <Globe className="w-3 h-3 mr-1" /> 线上
+                                </span>
+                            )}
+                            {item.isOffline && (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="线下上架">
+                                    <Store className="w-3 h-3 mr-1" /> 线下
+                                </span>
+                            )}
+                            {!item.isOnline && !item.isOffline && (
+                                <span className="text-xs text-gray-400">-</span>
+                            )}
+                        </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         ¥{item.price.toFixed(2)}
