@@ -18,7 +18,9 @@ import {
   RefreshCw,
   MoreHorizontal,
   Globe,
-  Store
+  Store,
+  Menu,
+  Copy
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -33,6 +35,9 @@ const App: React.FC = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Mobile UI State
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<InventoryItem>>({
@@ -55,6 +60,7 @@ const App: React.FC = () => {
   const [filterType, setFilterType] = useState('');
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [showOfflineOnly, setShowOfflineOnly] = useState(false);
+  const [showUnlistedOnly, setShowUnlistedOnly] = useState(false); // New Filter
   
   // Sorting State
   const [sortField, setSortField] = useState<SortField>('id');
@@ -122,10 +128,13 @@ const App: React.FC = () => {
       const matchesSeries = filterSeries ? item.series === filterSeries : true;
       const matchesCharacter = filterCharacter ? item.character === filterCharacter : true;
       const matchesType = filterType ? item.type === filterType : true;
+      
       const matchesOnline = showOnlineOnly ? item.isOnline : true;
       const matchesOffline = showOfflineOnly ? item.isOffline : true;
+      // New logic: Only Unlisted
+      const matchesUnlisted = showUnlistedOnly ? (!item.isOnline && !item.isOffline) : true;
 
-      return matchesSearch && matchesSeries && matchesCharacter && matchesType && matchesOnline && matchesOffline;
+      return matchesSearch && matchesSeries && matchesCharacter && matchesType && matchesOnline && matchesOffline && matchesUnlisted;
     }).sort((a, b) => {
       const valA = a[sortField];
       const valB = b[sortField];
@@ -138,7 +147,7 @@ const App: React.FC = () => {
       const strB = String(valB || '');
       return sortOrder === 'asc' ? strA.localeCompare(strB) : strB.localeCompare(strA);
     });
-  }, [items, searchQuery, filterSeries, filterCharacter, filterType, sortField, sortOrder, showOnlineOnly, showOfflineOnly]);
+  }, [items, searchQuery, filterSeries, filterCharacter, filterType, sortField, sortOrder, showOnlineOnly, showOfflineOnly, showUnlistedOnly]);
 
   // Check if all visible items are selected
   const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedIds.has(item.id));
@@ -192,14 +201,27 @@ const App: React.FC = () => {
     e.stopPropagation(); // Prevent row click
     setFormData(item);
     setEditingId(item.id);
-    // Form is always open
+    setIsSidebarOpen(false); // Close sidebar if open
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDuplicate = (e: React.MouseEvent, item: InventoryItem) => {
+    e.stopPropagation();
+    // Copy item data but reset sold count and ID related info
+    const newItemData = {
+        ...item,
+        sold: 0, // Reset sold for new item
+    };
+    // Clean up internal ID if it existed in spread
+    setFormData(newItemData);
+    setEditingId(null); // Ensure we are in "Create" mode
+    setIsSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDelete = (e: React.MouseEvent, id: number) => {
     e.stopPropagation(); // Prevent row click or other events
     
-    // Safety check for invalid IDs
     if (isNaN(id)) {
       alert("无法删除 ID 无效的条目，请尝试刷新页面。");
       return;
@@ -221,6 +243,7 @@ const App: React.FC = () => {
       const idsToRemove = new Set(Array.from(selectedIds).map(String));
       setItems(prev => prev.filter(item => !idsToRemove.has(String(item.id))));
       setSelectedIds(new Set());
+      setIsSidebarOpen(false);
     }
   };
 
@@ -256,6 +279,7 @@ const App: React.FC = () => {
       isOffline: false
     });
     setEditingId(null);
+    setIsSidebarOpen(false);
   };
 
   const handleSort = (field: SortField) => {
@@ -296,9 +320,16 @@ const App: React.FC = () => {
       alert("Excel 导出组件尚未加载完成，请稍后再试。");
       return;
     }
+
+    // Determine what to export: Selected items OR Filtered items
+    let itemsToExport = filteredItems;
+    if (selectedIds.size > 0) {
+        // If there are selections, export ONLY selections (matching against the master list to ensure data integrity)
+        itemsToExport = items.filter(item => selectedIds.has(item.id));
+    }
     
     // Format data for user-friendly export
-    const exportData = filteredItems.map(item => ({
+    const exportData = itemsToExport.map(item => ({
       '编号': item.id,
       '作品/系列': item.series,
       '角色': item.character,
@@ -317,11 +348,16 @@ const App: React.FC = () => {
     const ws = window.XLSX.utils.json_to_sheet(exportData);
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, "库存表");
-    window.XLSX.writeFile(wb, `周边库存_${new Date().toISOString().slice(0,10)}.xlsx`);
+    const filename = selectedIds.size > 0 
+        ? `周边库存_选定${selectedIds.size}项_${new Date().toISOString().slice(0,10)}.xlsx`
+        : `周边库存_完整_${new Date().toISOString().slice(0,10)}.xlsx`;
+    window.XLSX.writeFile(wb, filename);
+    setIsSidebarOpen(false);
   };
 
   const triggerImport = () => {
     fileInputRef.current?.click();
+    setIsSidebarOpen(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -357,7 +393,7 @@ const App: React.FC = () => {
         let addedCount = 0;
 
         jsonData.forEach((row: any) => {
-          // Robust ID parsing: Check for undefined or null explicitly
+          // Robust ID parsing
           const rawId = row['编号'];
           let parsedId = NaN;
           
@@ -385,7 +421,6 @@ const App: React.FC = () => {
             updatedCount++;
           } else {
             // Add new
-            // If parsedId is valid and unused, use it. Otherwise generate new.
             const newId = (!isNaN(parsedId) && !currentItemsMap.has(parsedId)) 
               ? parsedId 
               : ++maxId;
@@ -409,7 +444,6 @@ const App: React.FC = () => {
           }
         });
 
-        // Convert Map back to array and validate all IDs are numbers
         const validItems = Array.from(currentItemsMap.values())
           .filter(i => !isNaN(i.id))
           .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -428,7 +462,80 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 font-sans">
+    <div className="min-h-screen bg-gray-50 pb-20 font-sans relative">
+      
+      {/* Hidden File Input */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileUpload} 
+        accept=".xlsx, .xls" 
+        className="hidden" 
+      />
+
+      {/* Mobile Sidebar (Drawer) */}
+      {isSidebarOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+            onClick={() => setIsSidebarOpen(false)}
+          />
+          
+          {/* Sidebar Content */}
+          <div className="relative w-72 bg-white h-full shadow-2xl p-6 flex flex-col gap-6 animate-in slide-in-from-right duration-200">
+            <div className="flex justify-between items-center border-b pb-4">
+               <h2 className="text-xl font-bold text-gray-800">菜单</h2>
+               <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full">
+                 <X className="w-6 h-6" />
+               </button>
+            </div>
+            
+            <div className="space-y-3 flex-1">
+                <button 
+                  onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  className="w-full flex items-center px-4 py-3 text-base font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-sm"
+                >
+                  <Plus className="w-5 h-5 mr-3" />
+                  新建商品
+                </button>
+                
+                <hr className="border-gray-100 my-2" />
+
+                <button 
+                  onClick={triggerImport}
+                  className="w-full flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Upload className="w-5 h-5 mr-3 text-gray-500" />
+                  导入 Excel
+                </button>
+                
+                <button 
+                  onClick={exportToExcel}
+                  className="w-full flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Download className="w-5 h-5 mr-3 text-gray-500" />
+                  {selectedIds.size > 0 ? `导出选中 (${selectedIds.size})` : '导出全部'}
+                </button>
+                
+                {selectedIds.size > 0 && (
+                   <button 
+                    onClick={handleBatchDelete}
+                    className="w-full flex items-center px-4 py-3 text-base font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors shadow-sm"
+                  >
+                    <Trash2 className="w-5 h-5 mr-3" />
+                    批量删除 ({selectedIds.size})
+                  </button>
+                )}
+            </div>
+            
+            <div className="text-xs text-gray-400 text-center border-t pt-4">
+               周边库存管理系统 v1.2
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -436,48 +543,49 @@ const App: React.FC = () => {
             <Package className="w-6 h-6 text-indigo-600 flex-shrink-0" />
             <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate">周边管理</h1>
           </div>
-          <div className="flex gap-2 md:gap-3 items-center">
-             <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileUpload} 
-              accept=".xlsx, .xls" 
-              className="hidden" 
-            />
+          
+          {/* Desktop Toolbar */}
+          <div className="hidden md:flex gap-2 md:gap-3 items-center">
             {selectedIds.size > 0 && (
               <button 
                 onClick={handleBatchDelete}
                 className="flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 transition-colors shadow-sm"
-                title="批量删除"
               >
-                <Trash2 className="w-4 h-4 md:mr-2" />
-                <span className="hidden md:inline">批量删除 ({selectedIds.size})</span>
+                <Trash2 className="w-4 h-4 mr-2" />
+                批量删除 ({selectedIds.size})
               </button>
             )}
             <button 
               onClick={triggerImport}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              title="导入 Excel"
             >
-              <Upload className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">导入</span>
+              <Upload className="w-4 h-4 mr-2" />
+              导入
             </button>
             <button 
               onClick={exportToExcel}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
-              title="导出 Excel"
             >
-              <Download className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">导出</span>
+              <Download className="w-4 h-4 mr-2" />
+              导出
             </button>
             <button 
               onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
               className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors shadow-sm"
             >
-              {editingId ? <RefreshCw className="w-4 h-4 md:mr-2" /> : <Plus className="w-4 h-4 md:mr-2" />}
-              <span className="hidden md:inline">{editingId ? '放弃编辑' : '新建'}</span>
-              <span className="md:hidden">{editingId ? '重置' : '新建'}</span>
+              {editingId ? <RefreshCw className="w-4 h-4 mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
+              {editingId ? '放弃编辑' : '新建'}
             </button>
+          </div>
+
+          {/* Mobile Menu Trigger */}
+          <div className="md:hidden">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 text-gray-600 hover:bg-gray-100 rounded-md focus:outline-none"
+              >
+                  <Menu className="w-6 h-6" />
+              </button>
           </div>
         </div>
       </header>
@@ -682,7 +790,10 @@ const App: React.FC = () => {
                 <input 
                     type="checkbox" 
                     checked={showOnlineOnly} 
-                    onChange={(e) => setShowOnlineOnly(e.target.checked)}
+                    onChange={(e) => {
+                        setShowOnlineOnly(e.target.checked);
+                        if(e.target.checked) setShowUnlistedOnly(false); // Mutually exclusive UI logic
+                    }}
                     className="h-4 w-4 text-indigo-600 border-gray-300 rounded accent-indigo-600"
                 />
                 <span>仅看线上</span>
@@ -691,13 +802,31 @@ const App: React.FC = () => {
                 <input 
                     type="checkbox" 
                     checked={showOfflineOnly} 
-                    onChange={(e) => setShowOfflineOnly(e.target.checked)}
+                    onChange={(e) => {
+                        setShowOfflineOnly(e.target.checked);
+                        if(e.target.checked) setShowUnlistedOnly(false);
+                    }}
                     className="h-4 w-4 text-indigo-600 border-gray-300 rounded accent-indigo-600"
                 />
                 <span>仅看线下</span>
             </label>
+            <label className="flex items-center space-x-1 whitespace-nowrap text-sm text-gray-700 cursor-pointer select-none">
+                <input 
+                    type="checkbox" 
+                    checked={showUnlistedOnly} 
+                    onChange={(e) => {
+                        setShowUnlistedOnly(e.target.checked);
+                        if(e.target.checked) {
+                             setShowOnlineOnly(false);
+                             setShowOfflineOnly(false);
+                        }
+                    }}
+                    className="h-4 w-4 text-red-600 border-gray-300 rounded accent-red-600"
+                />
+                <span>仅看未上架</span>
+            </label>
 
-            {(filterSeries || filterCharacter || filterType || searchQuery || showOnlineOnly || showOfflineOnly) && (
+            {(filterSeries || filterCharacter || filterType || searchQuery || showOnlineOnly || showOfflineOnly || showUnlistedOnly) && (
               <button 
                 onClick={() => { 
                     setFilterSeries(''); 
@@ -706,6 +835,7 @@ const App: React.FC = () => {
                     setSearchQuery(''); 
                     setShowOnlineOnly(false);
                     setShowOfflineOnly(false);
+                    setShowUnlistedOnly(false);
                 }}
                 className="px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md border border-transparent whitespace-nowrap flex-shrink-0"
               >
@@ -769,6 +899,11 @@ const App: React.FC = () => {
                                 <Store className="w-3 h-3" />
                              </span>
                         )}
+                        {!item.isOnline && !item.isOffline && (
+                             <span className="p-0.5 rounded bg-red-100 text-red-700 text-[10px] px-1" title="未上架">
+                                未上架
+                             </span>
+                        )}
                     </div>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 mb-1">
                           {item.type}
@@ -809,6 +944,13 @@ const App: React.FC = () => {
                       className="flex-1 bg-green-50 text-green-700 py-2 rounded-md text-sm font-medium hover:bg-green-100 flex justify-center items-center disabled:opacity-50"
                     >
                        <ShoppingCart className="w-4 h-4 mr-1 pointer-events-none" /> 售出
+                    </button>
+                    <button 
+                      onClick={(e) => handleDuplicate(e, item)}
+                      className="flex-none bg-blue-50 text-blue-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-100 flex justify-center items-center"
+                      title="复制"
+                    >
+                       <Copy className="w-4 h-4 pointer-events-none" />
                     </button>
                     <button 
                       onClick={(e) => handleDelete(e, item.id)}
@@ -925,7 +1067,9 @@ const App: React.FC = () => {
                                 </span>
                             )}
                             {!item.isOnline && !item.isOffline && (
-                                <span className="text-xs text-gray-400">-</span>
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-50 text-red-500" title="未上架">
+                                     未上架
+                                </span>
                             )}
                         </div>
                       </td>
@@ -952,6 +1096,13 @@ const App: React.FC = () => {
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             <ShoppingCart className="w-4 h-4 pointer-events-none" />
+                          </button>
+                           <button 
+                            onClick={(e) => handleDuplicate(e, item)}
+                            title="复制为新商品"
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                          >
+                            <Copy className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleEdit(e, item)}
