@@ -20,7 +20,12 @@ import {
   Globe,
   Store,
   Menu,
-  Copy
+  Copy,
+  Database,
+  FileJson,
+  Share2,
+  FileUp,
+  ClipboardCopy
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -38,6 +43,7 @@ const App: React.FC = () => {
   
   // Mobile UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<InventoryItem>>({
@@ -315,7 +321,7 @@ const App: React.FC = () => {
     setSelectedIds(newSet);
   };
 
-  const exportToExcel = () => {
+  const exportToExcel = async () => {
     if (!window.XLSX) {
       alert("Excel 导出组件尚未加载完成，请稍后再试。");
       return;
@@ -324,11 +330,10 @@ const App: React.FC = () => {
     // Determine what to export: Selected items OR Filtered items
     let itemsToExport = filteredItems;
     if (selectedIds.size > 0) {
-        // If there are selections, export ONLY selections (matching against the master list to ensure data integrity)
         itemsToExport = items.filter(item => selectedIds.has(item.id));
     }
     
-    // Format data for user-friendly export
+    // Format data
     const exportData = itemsToExport.map(item => ({
       '编号': item.id,
       '作品/系列': item.series,
@@ -348,11 +353,42 @@ const App: React.FC = () => {
     const ws = window.XLSX.utils.json_to_sheet(exportData);
     const wb = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(wb, ws, "库存表");
-    const filename = selectedIds.size > 0 
-        ? `周边库存_选定${selectedIds.size}项_${new Date().toISOString().slice(0,10)}.xlsx`
-        : `周边库存_完整_${new Date().toISOString().slice(0,10)}.xlsx`;
-    window.XLSX.writeFile(wb, filename);
-    setIsSidebarOpen(false);
+    const filename = `周边库存_${selectedIds.size > 0 ? '选定' : '完整'}_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+    try {
+        // Generate Blob for more robust mobile handling
+        const wbout = window.XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+        // Try Web Share API Level 2 (Android/iOS 15+)
+        if (navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: blob.type })] })) {
+             const file = new File([blob], filename, { type: blob.type });
+             await navigator.share({
+                 files: [file],
+                 title: '导出库存数据',
+                 text: '这是您的库存 Excel 文件'
+             });
+             setIsSidebarOpen(false);
+             return;
+        } 
+        
+        // Fallback: Create Object URL (Better than writeFile on mobile)
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setIsSidebarOpen(false);
+
+    } catch (error) {
+        console.error("Export error:", error);
+        // Last resort fallback
+        window.XLSX.writeFile(wb, filename);
+        setIsSidebarOpen(false);
+    }
   };
 
   const triggerImport = () => {
@@ -461,10 +497,196 @@ const App: React.FC = () => {
     e.target.value = ''; // Reset input
   };
 
+  // --- Backup Modal Component ---
+  const BackupModal = () => {
+    const [mode, setMode] = useState<'export' | 'import'>('export');
+    const [importText, setImportText] = useState('');
+    const jsonFileRef = useRef<HTMLInputElement>(null);
+    const jsonString = JSON.stringify(items, null, 2);
+
+    const handleCopy = () => {
+      navigator.clipboard.writeText(jsonString).then(() => {
+        alert('数据已复制到剪贴板！');
+      });
+    };
+
+    const handleDownloadJSON = () => {
+       const blob = new Blob([jsonString], { type: 'application/json' });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement("a");
+       a.href = url;
+       a.download = `inventory_backup_${new Date().toISOString().slice(0,10)}.json`;
+       document.body.appendChild(a);
+       a.click();
+       document.body.removeChild(a);
+       URL.revokeObjectURL(url);
+    };
+
+    const handleJSONFileImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if(!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const text = evt.target?.result as string;
+            setImportText(text); // Set text for preview/confirmation
+            tryRestore(text);
+        };
+        reader.readAsText(file);
+        e.target.value = '';
+    };
+
+    const tryRestore = (jsonContent: string) => {
+        if (!jsonContent) return;
+        if (!window.confirm('警告：此操作将覆盖当前所有数据！确定要恢复吗？')) return;
+        
+        try {
+            const parsed = JSON.parse(jsonContent);
+            if (!Array.isArray(parsed)) throw new Error('Format error');
+            
+            // Sanitize imported data
+            const sanitizedData = parsed.map((item: any) => ({
+                ...item,
+                id: Number(item.id),
+                stock: Number(item.stock) || 0,
+                sold: Number(item.sold) || 0,
+                price: Number(item.price) || 0,
+                isOnline: !!item.isOnline,
+                isOffline: !!item.isOffline,
+                createdAt: item.createdAt || Date.now()
+            })).filter((item: any) => !isNaN(item.id));
+
+            setItems(sanitizedData);
+            alert(`成功恢复 ${sanitizedData.length} 条数据！`);
+            setIsBackupModalOpen(false);
+        } catch (e) {
+            alert('数据格式错误，请确保导入的是正确的 JSON 备份文件。');
+        }
+    };
+
+    return (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsBackupModalOpen(false)} />
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg relative z-10 flex flex-col max-h-[90vh]">
+          <div className="flex justify-between items-center p-4 border-b">
+            <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              <Database className="w-5 h-5 text-indigo-600" />
+              数据备份与迁移
+            </h3>
+            <button onClick={() => setIsBackupModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <div className="flex border-b">
+             <button 
+                className={`flex-1 py-3 text-sm font-medium ${mode === 'export' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                onClick={() => setMode('export')}
+             >
+                导出 (备份)
+             </button>
+             <button 
+                className={`flex-1 py-3 text-sm font-medium ${mode === 'import' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-gray-500 hover:bg-gray-50'}`}
+                onClick={() => setMode('import')}
+             >
+                导入 (恢复)
+             </button>
+          </div>
+
+          <div className="p-4 flex-1 overflow-auto">
+             {mode === 'export' ? (
+                <div className="space-y-6">
+                  <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                      <h4 className="font-semibold text-indigo-900 mb-2 flex items-center">
+                          <FileJson className="w-4 h-4 mr-2" /> 推荐：下载备份文件
+                      </h4>
+                      <p className="text-xs text-indigo-700 mb-3">
+                          将生成一个 .json 文件。在其他设备上使用“上传备份文件”即可恢复。适合数据量大的情况。
+                      </p>
+                      <button 
+                        onClick={handleDownloadJSON}
+                        className="w-full py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 font-medium shadow-sm flex items-center justify-center"
+                      >
+                        <Download className="w-4 h-4 mr-2" /> 下载 JSON 文件
+                      </button>
+                  </div>
+
+                  <div className="border-t pt-4">
+                     <h4 className="font-medium text-gray-700 mb-2 text-sm flex items-center">
+                         <ClipboardCopy className="w-4 h-4 mr-2" /> 备用：复制文本
+                     </h4>
+                     <textarea 
+                        readOnly 
+                        value={jsonString}
+                        onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+                        className="w-full h-24 p-2 border rounded-md text-[10px] font-mono bg-gray-50 focus:ring-2 focus:ring-indigo-500 text-gray-500"
+                      />
+                      <button 
+                        onClick={handleCopy}
+                        className="w-full mt-2 py-2 border border-indigo-600 text-indigo-600 rounded-md hover:bg-indigo-50 font-medium text-sm"
+                      >
+                        复制文本到剪贴板
+                      </button>
+                  </div>
+                </div>
+             ) : (
+               <div className="space-y-6">
+                 <input 
+                    type="file" 
+                    ref={jsonFileRef}
+                    accept=".json"
+                    className="hidden"
+                    onChange={handleJSONFileImport}
+                 />
+
+                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center">
+                          <FileUp className="w-4 h-4 mr-2" /> 方式一：上传备份文件
+                      </h4>
+                      <p className="text-xs text-gray-600 mb-3">
+                          选择之前下载的 .json 备份文件进行恢复。
+                      </p>
+                      <button 
+                        onClick={() => jsonFileRef.current?.click()}
+                        className="w-full py-3 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 font-medium shadow-sm flex items-center justify-center"
+                      >
+                        <Upload className="w-4 h-4 mr-2" /> 选择文件
+                      </button>
+                  </div>
+
+                  <div className="border-t pt-4 space-y-3">
+                      <h4 className="font-medium text-gray-700 text-sm flex items-center">
+                         <ClipboardCopy className="w-4 h-4 mr-2" /> 方式二：粘贴文本
+                     </h4>
+                      <p className="text-xs text-gray-500">
+                        如果数据量较小，也可以直接粘贴文本：
+                      </p>
+                      <textarea 
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                        placeholder='在此粘贴 JSON 数据...'
+                        className="w-full h-24 p-3 border rounded-md text-xs font-mono focus:ring-2 focus:ring-indigo-500"
+                      />
+                      <button 
+                        onClick={() => tryRestore(importText)}
+                        disabled={!importText}
+                        className="w-full py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        覆盖并恢复数据
+                      </button>
+                  </div>
+               </div>
+             )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20 font-sans relative">
       
-      {/* Hidden File Input */}
+      {/* Hidden File Input for Excel Import */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -472,6 +694,9 @@ const App: React.FC = () => {
         accept=".xlsx, .xls" 
         className="hidden" 
       />
+
+      {/* Backup Modal */}
+      {isBackupModalOpen && <BackupModal />}
 
       {/* Mobile Sidebar (Drawer) */}
       {isSidebarOpen && (
@@ -503,6 +728,14 @@ const App: React.FC = () => {
                 <hr className="border-gray-100 my-2" />
 
                 <button 
+                  onClick={() => { setIsBackupModalOpen(true); setIsSidebarOpen(false); }}
+                  className="w-full flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  <Database className="w-5 h-5 mr-3 text-indigo-600" />
+                  数据备份/恢复
+                </button>
+
+                <button 
                   onClick={triggerImport}
                   className="w-full flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
                 >
@@ -514,8 +747,9 @@ const App: React.FC = () => {
                   onClick={exportToExcel}
                   className="w-full flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <Download className="w-5 h-5 mr-3 text-gray-500" />
-                  {selectedIds.size > 0 ? `导出选中 (${selectedIds.size})` : '导出全部'}
+                  {/* Icon logic: use Share icon if likely on mobile/supported, else Download */}
+                  {navigator.share ? <Share2 className="w-5 h-5 mr-3 text-green-600" /> : <Download className="w-5 h-5 mr-3 text-gray-500" />}
+                  {selectedIds.size > 0 ? `导出选中 (${selectedIds.size})` : '导出全部 (Excel)'}
                 </button>
                 
                 {selectedIds.size > 0 && (
@@ -530,7 +764,7 @@ const App: React.FC = () => {
             </div>
             
             <div className="text-xs text-gray-400 text-center border-t pt-4">
-               周边库存管理系统 v1.2
+               周边库存管理系统 v1.4
             </div>
           </div>
         </div>
@@ -555,6 +789,13 @@ const App: React.FC = () => {
                 批量删除 ({selectedIds.size})
               </button>
             )}
+             <button 
+              onClick={() => setIsBackupModalOpen(true)}
+              className="flex items-center px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md hover:bg-indigo-100 transition-colors"
+            >
+              <Database className="w-4 h-4 mr-2" />
+              备份
+            </button>
             <button 
               onClick={triggerImport}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
@@ -567,7 +808,7 @@ const App: React.FC = () => {
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
             >
               <Download className="w-4 h-4 mr-2" />
-              导出
+              导出 Excel
             </button>
             <button 
               onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
