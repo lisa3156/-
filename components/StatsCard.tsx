@@ -7,11 +7,15 @@ interface StatsCardProps {
   subValue?: string;
   icon: LucideIcon;
   colorClass: string;
+  onClick?: () => void;
 }
 
-export const StatsCard: React.FC<StatsCardProps> = ({ title, value, subValue, icon: Icon, colorClass }) => {
+export const StatsCard: React.FC<StatsCardProps> = ({ title, value, subValue, icon: Icon, colorClass, onClick }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center space-x-4">
+    <div 
+      onClick={onClick}
+      className={`bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center space-x-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+    >
       <div className={`p-3 rounded-full ${colorClass} bg-opacity-10`}>
         <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
       </div>

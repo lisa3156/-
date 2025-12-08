@@ -26,7 +26,8 @@ import {
   Share2,
   FileUp,
   ClipboardCopy,
-  EyeOff
+  EyeOff,
+  Receipt
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -45,6 +46,7 @@ const App: React.FC = () => {
   // Mobile UI State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isSalesDetailModalOpen, setIsSalesDetailModalOpen] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<Partial<InventoryItem>>({
@@ -519,6 +521,108 @@ const App: React.FC = () => {
     e.target.value = ''; // Reset input
   };
 
+  // --- Sales Detail Modal Component ---
+  const SalesDetailModal = () => {
+    // Show only items that have sales > 0 within the current filtered set
+    // Sorted by total revenue desc
+    const soldItems = useMemo(() => {
+        return filteredItems
+            .filter(item => item.sold > 0)
+            .sort((a, b) => (b.sold * b.price) - (a.sold * a.price));
+    }, []);
+
+    const totalSold = soldItems.reduce((acc, i) => acc + i.sold, 0);
+    const totalRevenue = soldItems.reduce((acc, i) => acc + (i.sold * i.price), 0);
+
+    return (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSalesDetailModalOpen(false)} />
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl relative z-10 flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-center p-4 border-b">
+                    <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <Receipt className="w-5 h-5 text-green-600" />
+                        已售商品明细 ({soldItems.length} 款)
+                    </h3>
+                    <button onClick={() => setIsSalesDetailModalOpen(false)} className="text-gray-500 hover:text-gray-700">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div className="p-0 overflow-auto flex-1 bg-gray-50">
+                    {/* Mobile View */}
+                    <div className="md:hidden">
+                        {soldItems.map(item => (
+                            <div key={item.id} className="bg-white p-4 border-b border-gray-100 last:border-0">
+                                <div className="flex justify-between items-start mb-1">
+                                    <div className="font-medium text-gray-900">{item.style || '无款式'}</div>
+                                    <div className="text-green-600 font-bold">¥{(item.sold * item.price).toLocaleString()}</div>
+                                </div>
+                                <div className="text-xs text-gray-500 mb-2">
+                                    {item.series} | {item.character} | {item.type}
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500 bg-gray-50 p-2 rounded">
+                                    <span>单价: ¥{item.price}</span>
+                                    <span>已出: <b className="text-gray-900">{item.sold}</b></span>
+                                </div>
+                            </div>
+                        ))}
+                        {soldItems.length === 0 && (
+                            <div className="text-center py-10 text-gray-500">暂无销售记录</div>
+                        )}
+                    </div>
+
+                    {/* Desktop View */}
+                    <div className="hidden md:block">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">商品信息</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">单价</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">已出数量</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">小计</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {soldItems.map((item) => (
+                                    <tr key={item.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">{item.style}</div>
+                                            <div className="text-xs text-gray-500">{item.series} - {item.character}</div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            ¥{item.price}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                                            {item.sold}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-bold text-right">
+                                            ¥{(item.sold * item.price).toFixed(2)}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {soldItems.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-10 text-center text-gray-500">当前筛选条件下暂无销售记录</td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div className="bg-white border-t p-4 flex justify-between items-center shadow-lg relative z-20">
+                    <div className="text-sm text-gray-500">
+                        共售出 <span className="font-bold text-gray-900">{totalSold}</span> 件商品
+                    </div>
+                    <div className="text-lg font-bold text-green-600">
+                        总计: ¥{totalRevenue.toLocaleString()}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+  };
+
   // --- Backup Modal Component ---
   const BackupModal = () => {
     const [mode, setMode] = useState<'export' | 'import'>('export');
@@ -717,8 +821,9 @@ const App: React.FC = () => {
         className="hidden" 
       />
 
-      {/* Backup Modal */}
+      {/* Modals */}
       {isBackupModalOpen && <BackupModal />}
+      {isSalesDetailModalOpen && <SalesDetailModal />}
 
       {/* Mobile Sidebar (Drawer) */}
       {isSidebarOpen && (
@@ -911,6 +1016,7 @@ const App: React.FC = () => {
             subValue={`${stats.totalSold} 件已出`}
             icon={DollarSign} 
             colorClass="bg-green-500 text-green-600" 
+            onClick={() => setIsSalesDetailModalOpen(true)}
           />
            <StatsCard 
             title="商品种类" 
