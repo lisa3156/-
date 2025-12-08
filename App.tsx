@@ -25,7 +25,8 @@ import {
   FileJson,
   Share2,
   FileUp,
-  ClipboardCopy
+  ClipboardCopy,
+  EyeOff
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
@@ -251,6 +252,27 @@ const App: React.FC = () => {
       setSelectedIds(new Set());
       setIsSidebarOpen(false);
     }
+  };
+
+  const handleBulkStatusUpdate = (action: 'setOnline' | 'setOffline' | 'setUnlisted') => {
+    if (selectedIds.size === 0) return;
+    
+    setItems(prev => prev.map(item => {
+      if (!selectedIds.has(item.id)) return item;
+      
+      switch(action) {
+        case 'setOnline':
+          return { ...item, isOnline: true };
+        case 'setOffline':
+          return { ...item, isOffline: true };
+        case 'setUnlisted':
+          return { ...item, isOnline: false, isOffline: false };
+        default:
+          return item;
+      }
+    }));
+    
+    setIsSidebarOpen(false);
   };
 
   const handleQuickSell = (e: React.MouseEvent, id: number) => {
@@ -727,6 +749,32 @@ const App: React.FC = () => {
                 
                 <hr className="border-gray-100 my-2" />
 
+                {selectedIds.size > 0 && (
+                   <div className="grid grid-cols-3 gap-2 mb-2">
+                       <button 
+                         onClick={() => handleBulkStatusUpdate('setOnline')}
+                         className="flex flex-col items-center justify-center p-2 bg-blue-50 text-blue-700 rounded-lg text-xs hover:bg-blue-100"
+                       >
+                          <Globe className="w-5 h-5 mb-1" />
+                          设为线上
+                       </button>
+                       <button 
+                         onClick={() => handleBulkStatusUpdate('setOffline')}
+                         className="flex flex-col items-center justify-center p-2 bg-purple-50 text-purple-700 rounded-lg text-xs hover:bg-purple-100"
+                       >
+                          <Store className="w-5 h-5 mb-1" />
+                          设为线下
+                       </button>
+                        <button 
+                         onClick={() => handleBulkStatusUpdate('setUnlisted')}
+                         className="flex flex-col items-center justify-center p-2 bg-gray-50 text-gray-700 rounded-lg text-xs hover:bg-gray-100"
+                       >
+                          <EyeOff className="w-5 h-5 mb-1" />
+                          下架
+                       </button>
+                   </div>
+                )}
+
                 <button 
                   onClick={() => { setIsBackupModalOpen(true); setIsSidebarOpen(false); }}
                   className="w-full flex items-center px-4 py-3 text-base font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
@@ -764,7 +812,7 @@ const App: React.FC = () => {
             </div>
             
             <div className="text-xs text-gray-400 text-center border-t pt-4">
-               周边库存管理系统 v1.4
+               周边库存管理系统 v1.5
             </div>
           </div>
         </div>
@@ -780,6 +828,21 @@ const App: React.FC = () => {
           
           {/* Desktop Toolbar */}
           <div className="hidden md:flex gap-2 md:gap-3 items-center">
+            {selectedIds.size > 0 && (
+               <div className="flex items-center gap-1 border-r border-gray-300 pr-3 mr-1">
+                 <span className="text-xs text-gray-500 font-medium hidden lg:inline mr-1">批量设置:</span>
+                 <button onClick={() => handleBulkStatusUpdate('setOnline')} title="批量设为线上" className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md">
+                    <Globe className="w-4 h-4" />
+                 </button>
+                 <button onClick={() => handleBulkStatusUpdate('setOffline')} title="批量设为线下" className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-md">
+                    <Store className="w-4 h-4" />
+                 </button>
+                 <button onClick={() => handleBulkStatusUpdate('setUnlisted')} title="批量下架" className="p-1.5 text-gray-600 hover:bg-gray-100 rounded-md">
+                    <EyeOff className="w-4 h-4" />
+                 </button>
+               </div>
+            )}
+
             {selectedIds.size > 0 && (
               <button 
                 onClick={handleBatchDelete}
