@@ -33,9 +33,11 @@ import {
   ArrowUpDown,
   Tag,
   Layers,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Undo2,
+  Redo2
 } from 'lucide-react';
-import { InventoryItem, SortField, SortOrder, SettlementSettings } from './types';
+import { InventoryItem, SortField, SortOrder, SettlementSettings, UndoAction } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
 import { StatsCard } from './components/StatsCard';
 
@@ -65,9 +67,14 @@ export const App: React.FC = () => {
   // Settlement Ratio Settings
   const [settlementSettings, setSettlementSettings] = useState<SettlementSettings>(DEFAULT_SETTLEMENT);
 
-  // Form State
+  // Undo & Redo History State
+  const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
+  const [redoStack, setRedoStack] = useState<UndoAction[]>([]);
+  const [toastMessage, setToastMessage] = useState<{ text: string; isUndoNotification: boolean } | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Form State (No 'type' field)
   const [formData, setFormData] = useState<Partial<InventoryItem>>({
-    type: '',
     style: '',
     character: '',
     series: '',
@@ -79,9 +86,8 @@ export const App: React.FC = () => {
     isListed: true
   });
 
-  // Filter & Search State
+  // Filter & Search State (No 'filterType')
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('');
   const [filterShelf, setFilterShelf] = useState('');
   const [filterListedStatus, setFilterListedStatus] = useState<'all' | 'listed' | 'unlisted'>('all');
   const [filterStockStatus, setFilterStockStatus] = useState<'all' | 'in_stock' | 'sold_out'>('all');
@@ -92,6 +98,72 @@ export const App: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // --- Effects ---
+
+  // Toast notification helper
+  const showToast = (text: string, isUndoNotification = true) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToastMessage({ text, isUndoNotification });
+    toastTimerRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 4500);
+  };
+
+  // Push snapshot to undo stack
+  const pushUndo = (description: string, prevItems: InventoryItem[]) => {
+    setUndoStack(prev => [{ description, items: prevItems, timestamp: Date.now() }, ...prev.slice(0, 29)]);
+    setRedoStack([]); // Clear redo stack on new modification
+    showToast(description, true);
+  };
+
+  // Undo Handler
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const [actionToUndo, ...remainingUndo] = undoStack;
+    setRedoStack(prev => [{ description: actionToUndo.description, items, timestamp: Date.now() }, ...prev.slice(0, 29)]);
+    setUndoStack(remainingUndo);
+    setItems(actionToUndo.items);
+    showToast(`已撤销：${actionToUndo.description}`, false);
+  };
+
+  // Redo Handler
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    const [actionToRedo, ...remainingRedo] = redoStack;
+    setUndoStack(prev => [{ description: actionToRedo.description, items, timestamp: Date.now() }, ...prev.slice(0, 29)]);
+    setRedoStack(remainingRedo);
+    setItems(actionToRedo.items);
+    showToast(`已重做：${actionToRedo.description}`, false);
+  };
+
+  // Global Keyboard Shortcuts (Ctrl+Z / Cmd+Z for Undo, Ctrl+Y / Cmd+Shift+Z for Redo)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target as any).isContentEditable);
+      
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          if (!isInput && redoStack.length > 0) {
+            e.preventDefault();
+            handleRedo();
+          }
+        } else {
+          if (!isInput && undoStack.length > 0) {
+            e.preventDefault();
+            handleUndo();
+          }
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        if (!isInput && redoStack.length > 0) {
+          e.preventDefault();
+          handleRedo();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undoStack, redoStack, items]);
 
   // Load Settlement Settings on mount
   useEffect(() => {
@@ -148,11 +220,10 @@ export const App: React.FC = () => {
         console.error("Failed to parse saved data", e);
       }
     } else {
-      // Seed initial demo data
+      // Seed initial demo data (without requiring type)
       setItems([
         { 
           id: 1001, 
-          type: '徽章', 
           style: '镭射票', 
           character: '旅行者', 
           series: '原神', 
@@ -166,8 +237,7 @@ export const App: React.FC = () => {
         },
         { 
           id: 1002, 
-          type: '立牌', 
-          style: '15cm 站姿', 
+          style: '15cm 站姿立牌', 
           character: '芙莉莲', 
           series: '葬送的芙莉莲', 
           shelfLocation: 'HC3', 
@@ -180,8 +250,7 @@ export const App: React.FC = () => {
         },
         { 
           id: 1003, 
-          type: '挂件', 
-          style: '双面夹层亚克力', 
+          style: '双面夹层亚克力挂件', 
           character: '星野', 
           series: '蔚蓝档案', 
           shelfLocation: 'HB3', 
@@ -202,7 +271,6 @@ export const App: React.FC = () => {
   }, [items]);
 
   // --- Derived Data for Autocomplete & Filters ---
-  const existingTypes = useMemo(() => Array.from(new Set(items.map(i => i.type))).filter(Boolean), [items]);
   const existingSeries = useMemo(() => Array.from(new Set(items.map(i => i.series))).filter(Boolean), [items]);
   const existingCharacters = useMemo(() => Array.from(new Set(items.map(i => i.character))).filter(Boolean), [items]);
   const existingShelves = useMemo(() => {
@@ -218,13 +286,10 @@ export const App: React.FC = () => {
       const matchesSearch = !q || 
         (item.series || '').toLowerCase().includes(q) ||
         (item.character || '').toLowerCase().includes(q) ||
-        (item.type || '').toLowerCase().includes(q) ||
         (item.style || '').toLowerCase().includes(q) ||
         (item.shelfLocation || '').toLowerCase().includes(q) ||
         (item.remark || '').toLowerCase().includes(q) ||
         item.id.toString().includes(q);
-
-      const matchesType = filterType ? item.type === filterType : true;
       
       const matchesShelf = filterShelf 
         ? (filterShelf === '__NONE__' 
@@ -244,7 +309,7 @@ export const App: React.FC = () => {
           ? (item.stock || 0) > 0 
           : (item.stock || 0) <= 0;
 
-      return matchesSearch && matchesType && matchesShelf && matchesListed && matchesStock;
+      return matchesSearch && matchesShelf && matchesListed && matchesStock;
     }).sort((a, b) => {
       if (sortField === 'revenue') {
         const revA = (a.sold || 0) * (a.price || 0);
@@ -263,7 +328,7 @@ export const App: React.FC = () => {
       const strB = String(valB || '');
       return sortOrder === 'asc' ? strA.localeCompare(strB, 'zh-CN') : strB.localeCompare(strA, 'zh-CN');
     });
-  }, [items, searchQuery, filterType, filterShelf, filterListedStatus, filterStockStatus, sortField, sortOrder]);
+  }, [items, searchQuery, filterShelf, filterListedStatus, filterStockStatus, sortField, sortOrder]);
 
   // Check if all visible items are selected
   const isAllSelected = filteredItems.length > 0 && filteredItems.every(item => selectedIds.has(item.id));
@@ -322,6 +387,9 @@ export const App: React.FC = () => {
     
     if (editingId) {
       // Update existing
+      const existingItem = items.find(i => i.id === editingId);
+      pushUndo(`修改商品 #${editingId} (${existingItem?.character || ''} ${existingItem?.style || ''})`, items);
+      
       setItems(prev => prev.map(item => 
         item.id === editingId ? { 
           ...item, 
@@ -343,6 +411,8 @@ export const App: React.FC = () => {
         isListed: formData.isListed !== undefined ? !!formData.isListed : true,
         createdAt: Date.now()
       };
+      
+      pushUndo(`新增商品 #${newId} (${newItem.character || ''} ${newItem.style || ''})`, items);
       setItems(prev => [newItem, ...prev]);
     }
     
@@ -382,7 +452,9 @@ export const App: React.FC = () => {
       return;
     }
 
-    if (window.confirm(`确定要删除商品 #${id} 吗？`)) {
+    const itemToDelete = items.find(i => String(i.id) === String(id));
+    if (window.confirm(`确定要删除商品 #${id} (${itemToDelete?.character || ''} ${itemToDelete?.style || ''}) 吗？`)) {
+      pushUndo(`删除商品 #${id} (${itemToDelete?.character || ''} ${itemToDelete?.style || ''})`, items);
       setItems(prev => prev.filter(i => String(i.id) !== String(id)));
       setSelectedIds(prev => {
         const next = new Set(prev);
@@ -394,7 +466,8 @@ export const App: React.FC = () => {
 
   const handleBatchDelete = () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`确定要删除选中的 ${selectedIds.size} 项商品吗？此操作无法撤销。`)) {
+    if (window.confirm(`确定要删除选中的 ${selectedIds.size} 项商品吗？`)) {
+      pushUndo(`批量删除 ${selectedIds.size} 项商品`, items);
       const idsToRemove = new Set(Array.from(selectedIds).map(String));
       setItems(prev => prev.filter(item => !idsToRemove.has(String(item.id))));
       setSelectedIds(new Set());
@@ -404,6 +477,7 @@ export const App: React.FC = () => {
 
   const handleBulkListingUpdate = (isListed: boolean) => {
     if (selectedIds.size === 0) return;
+    pushUndo(`批量${isListed ? '上架' : '下架'} ${selectedIds.size} 项商品`, items);
     setItems(prev => prev.map(item => {
       if (!selectedIds.has(item.id)) return item;
       return { ...item, isListed };
@@ -413,6 +487,7 @@ export const App: React.FC = () => {
 
   const handleBulkShelfUpdate = (shelfLocation: string) => {
     if (selectedIds.size === 0) return;
+    pushUndo(`批量修改货架为 ${shelfLocation} (${selectedIds.size} 项)`, items);
     setItems(prev => prev.map(item => {
       if (!selectedIds.has(item.id)) return item;
       return { ...item, shelfLocation };
@@ -422,12 +497,15 @@ export const App: React.FC = () => {
 
   const handleQuickSell = (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
+    const itemToSell = items.find(i => i.id === id);
+    if (!itemToSell || itemToSell.stock <= 0) {
+      alert("库存不足！");
+      return;
+    }
+
+    pushUndo(`快速售出 +1 (${itemToSell.character || ''} ${itemToSell.style || ''})`, items);
     setItems(prev => prev.map(item => {
       if (item.id === id) {
-        if (item.stock <= 0) {
-          alert("库存不足！");
-          return item;
-        }
         return {
           ...item,
           stock: item.stock - 1,
@@ -440,7 +518,6 @@ export const App: React.FC = () => {
 
   const resetForm = () => {
     setFormData({
-      type: '',
       style: '',
       character: '',
       series: '',
@@ -507,7 +584,6 @@ export const App: React.FC = () => {
         '编号': item.id,
         '作品/系列': item.series,
         '角色': item.character,
-        '物品类型': item.type,
         '款式': item.style,
         '货架位置': item.shelfLocation || '',
         '是否已上架': item.isListed ? '是' : '否',
@@ -616,7 +692,6 @@ export const App: React.FC = () => {
           const newItemData: Partial<InventoryItem> = {
             series: String(row['作品/系列'] || row['作品'] || ''),
             character: String(row['角色'] || ''),
-            type: String(row['物品类型'] || row['类型'] || ''),
             style: String(row['款式'] || ''),
             shelfLocation: shelfLocation || 'HB3',
             isListed,
@@ -639,7 +714,6 @@ export const App: React.FC = () => {
             
             const newItem: InventoryItem = {
               id: newId,
-              type: newItemData.type || '未分类',
               style: newItemData.style || '',
               character: newItemData.character || '未命名',
               series: newItemData.series || '未分类',
@@ -660,6 +734,7 @@ export const App: React.FC = () => {
           .filter(i => !isNaN(i.id))
           .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
+        pushUndo(`导入 Excel 数据 (新增 ${addedCount} 条, 更新 ${updatedCount} 条)`, items);
         setItems(validItems);
         alert(`导入完成！新增: ${addedCount} 条，更新: ${updatedCount} 条。`);
 
@@ -1018,6 +1093,7 @@ export const App: React.FC = () => {
           createdAt: item.createdAt || Date.now()
         })).filter((item: any) => !isNaN(item.id));
 
+        pushUndo(`从 JSON 备份恢复数据 (${sanitizedData.length} 条)`, items);
         setItems(sanitizedData);
         alert(`成功恢复 ${sanitizedData.length} 条数据！`);
         setIsBackupModalOpen(false);
@@ -1293,6 +1369,26 @@ export const App: React.FC = () => {
 
               <hr className="border-slate-100" />
 
+              {/* Undo & Redo in Mobile Drawer */}
+              <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => { handleUndo(); setIsSidebarOpen(false); }}
+                  disabled={undoStack.length === 0}
+                  className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-[#2D6994] bg-[#EAF3F8] rounded-xl hover:bg-[#d9ecf5] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                >
+                  <Undo2 className="w-4 h-4 mr-1.5" />
+                  撤销 ({undoStack.length})
+                </button>
+                <button 
+                  onClick={() => { handleRedo(); setIsSidebarOpen(false); }}
+                  disabled={redoStack.length === 0}
+                  className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-[#2D6994] bg-[#EAF3F8] rounded-xl hover:bg-[#d9ecf5] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                >
+                  <Redo2 className="w-4 h-4 mr-1.5" />
+                  重做 ({redoStack.length})
+                </button>
+              </div>
+
               <button 
                 onClick={() => { setIsSalesDetailModalOpen(true); setIsSidebarOpen(false); }}
                 className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100"
@@ -1393,6 +1489,38 @@ export const App: React.FC = () => {
               </div>
             )}
 
+            {/* Undo / Redo Toolbar Buttons */}
+            <div className="flex items-center gap-1 bg-white/10 p-1 rounded-xl border border-white/20">
+              <button 
+                onClick={handleUndo}
+                disabled={undoStack.length === 0}
+                className="flex items-center px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-colors"
+                title={`撤销操作 (Ctrl+Z) - 当前可撤销 ${undoStack.length} 步`}
+              >
+                <Undo2 className="w-3.5 h-3.5 mr-1 text-[#72B8D6]" />
+                <span>撤销</span>
+                {undoStack.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 bg-[#72B8D6] text-[#2D6994] rounded-full text-[10px] font-bold">
+                    {undoStack.length}
+                  </span>
+                )}
+              </button>
+              <button 
+                onClick={handleRedo}
+                disabled={redoStack.length === 0}
+                className="flex items-center px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-colors"
+                title={`重做操作 (Ctrl+Y) - 当前可重做 ${redoStack.length} 步`}
+              >
+                <Redo2 className="w-3.5 h-3.5 mr-1 text-[#72B8D6]" />
+                <span>重做</span>
+                {redoStack.length > 0 && (
+                  <span className="ml-1 px-1.5 py-0.2 bg-[#F5B8A9] text-[#2C3842] rounded-full text-[10px] font-bold">
+                    {redoStack.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
             <button 
               onClick={() => setIsSettlementModalOpen(true)}
               className="flex items-center px-3 py-2 text-xs font-semibold text-[#2D6994] bg-white rounded-lg hover:bg-slate-100 transition-colors shadow-sm"
@@ -1436,11 +1564,19 @@ export const App: React.FC = () => {
           {/* Mobile Menu Trigger */}
           <div className="md:hidden flex items-center gap-1.5">
             <button 
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              className="p-2 text-white bg-white/15 hover:bg-white/25 rounded-lg disabled:opacity-40"
+              title="撤销"
+            >
+              <Undo2 className="w-4 h-4" />
+            </button>
+            <button 
               onClick={() => setIsSettlementModalOpen(true)}
               className="p-2 text-[#2D6994] bg-white rounded-lg shadow-sm"
               title="结算设置"
             >
-              <Calculator className="w-5 h-5" />
+              <Calculator className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -1451,6 +1587,30 @@ export const App: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* Floating Undo Notification Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200">
+          <div className="bg-[#2C3842] text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-700/60 flex items-center gap-3 text-sm">
+            <span className="font-medium">{toastMessage.text}</span>
+            {toastMessage.isUndoNotification && undoStack.length > 0 && (
+              <button 
+                onClick={handleUndo}
+                className="px-2.5 py-1 bg-[#2D6994] hover:bg-[#235375] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+              >
+                <Undo2 className="w-3 h-3" />
+                撤销
+              </button>
+            )}
+            <button 
+              onClick={() => setToastMessage(null)}
+              className="text-slate-400 hover:text-white ml-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
@@ -1540,14 +1700,16 @@ export const App: React.FC = () => {
               placeholder="例如：胡桃"
               required
             />
-            <InputWithSuggestions 
-              label="物品类型" 
-              value={formData.type || ''} 
-              onChange={(val) => handleInputChange('type', val)}
-              suggestions={existingTypes}
-              placeholder="例如：徽章 / 立牌"
-              required
-            />
+            <div>
+              <label className="block text-sm font-medium text-[#2C3842] mb-1">款式规格</label>
+              <input 
+                type="text" 
+                value={formData.style || ''} 
+                onChange={(e) => handleInputChange('style', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm text-[#2C3842]"
+                placeholder="例如：镭射票 / 15cm 站姿"
+              />
+            </div>
             
             {/* Shelf Location with quick HB3 / HC3 selector */}
             <div>
@@ -1587,17 +1749,6 @@ export const App: React.FC = () => {
               </div>
             </div>
 
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">款式规格</label>
-              <input 
-                type="text" 
-                value={formData.style || ''} 
-                onChange={(e) => handleInputChange('style', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm text-[#2C3842]"
-                placeholder="例如：镭射票 / 15cm 站姿"
-              />
-            </div>
-            
             {/* Listing Status Toggle (是否已上架) */}
             <div className="flex flex-col justify-end pb-1">
               <label className="block text-sm font-medium text-[#2C3842] mb-1">上架状态</label>
@@ -1626,7 +1777,7 @@ export const App: React.FC = () => {
               <label className="block text-sm font-medium text-[#2C3842] mb-1">单价 (¥)</label>
               <input 
                 type="number" 
-                min="0"
+                min="0" 
                 step="0.01"
                 value={formData.price || ''} 
                 onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
@@ -1640,7 +1791,7 @@ export const App: React.FC = () => {
               <label className="block text-sm font-medium text-[#2C3842] mb-1">当前库存数量</label>
               <input 
                 type="number" 
-                min="0"
+                min="0" 
                 value={formData.stock !== undefined ? formData.stock : ''} 
                 onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm font-medium text-[#2C3842]"
@@ -1652,14 +1803,14 @@ export const App: React.FC = () => {
               <label className="block text-sm font-medium text-[#2C3842] mb-1">已出数量 (初始/历史)</label>
               <input 
                 type="number" 
-                min="0"
+                min="0" 
                 value={formData.sold || 0} 
                 onChange={(e) => handleInputChange('sold', parseInt(e.target.value) || 0)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] bg-slate-50 text-sm text-[#2C3842]"
               />
             </div>
 
-            <div className="lg:col-span-2">
+            <div className="lg:col-span-3">
               <label className="block text-sm font-medium text-[#2C3842] mb-1">备注说明</label>
               <input 
                 type="text" 
@@ -1670,11 +1821,12 @@ export const App: React.FC = () => {
               />
             </div>
 
-            <div className="lg:col-span-4 flex justify-end pt-3 border-t border-slate-100">
+            <div className="flex items-end pb-0.5">
               <button 
                 type="submit" 
-                className="w-full md:w-auto px-7 py-2.5 bg-[#2D6994] text-white text-sm font-semibold rounded-xl hover:bg-[#235375] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2D6994] shadow-sm transition-colors"
+                className="w-full py-2.5 bg-[#2D6994] text-white text-sm font-semibold rounded-xl hover:bg-[#235375] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2D6994] shadow-sm transition-colors flex items-center justify-center gap-1.5"
               >
+                {editingId ? <RefreshCw className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                 {editingId ? '更新商品信息' : '保存商品条目'}
               </button>
             </div>
@@ -1753,14 +1905,14 @@ export const App: React.FC = () => {
                 type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
-                  showAdvancedFilters || (filterShelf || filterListedStatus !== 'all' || filterType)
+                  showAdvancedFilters || (filterShelf || filterListedStatus !== 'all')
                     ? 'bg-[#EAF3F8] text-[#2D6994] border-[#72B8D6] ring-2 ring-[#72B8D6]/20'
                     : 'bg-white text-[#2C3842] border-slate-300 hover:bg-slate-50'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>更多筛选</span>
-                {(filterShelf || filterListedStatus !== 'all' || filterType) && (
+                {(filterShelf || filterListedStatus !== 'all') && (
                   <span className="w-2 h-2 rounded-full bg-[#2D6994]" />
                 )}
                 {showAdvancedFilters ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
@@ -1771,7 +1923,7 @@ export const App: React.FC = () => {
           {/* Collapsible Advanced Filter Panel */}
           {showAdvancedFilters && (
             <div className="bg-[#F8FAFC] rounded-xl p-3.5 border border-slate-200/80 space-y-3 text-xs animate-in fade-in duration-150">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Shelf Location Filter */}
                 <div>
                   <label className="block text-[#697A88] font-semibold mb-1 flex items-center gap-1">
@@ -1801,21 +1953,6 @@ export const App: React.FC = () => {
                     <option value="all">全部状态</option>
                     <option value="listed">仅看已上架</option>
                     <option value="unlisted">仅看未上架</option>
-                  </select>
-                </div>
-
-                {/* Type Filter */}
-                <div>
-                  <label className="block text-[#697A88] font-semibold mb-1 flex items-center gap-1">
-                    <Package className="w-3.5 h-3.5 text-gray-400" /> 物品类型
-                  </label>
-                  <select 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-medium focus:ring-2 focus:ring-[#2D6994] text-xs text-[#2C3842]"
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                  >
-                    <option value="">全部类型</option>
-                    {existingTypes.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
 
@@ -1852,17 +1989,16 @@ export const App: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
             <div className="flex items-center gap-2 text-[#697A88] font-medium">
               <span>当前结果: <b className="text-[#2C3842]">{filteredItems.length}</b> 件</span>
-              {(filterShelf || filterListedStatus !== 'all' || filterType || filterStockStatus !== 'all' || searchQuery) && (
+              {(filterShelf || filterListedStatus !== 'all' || filterStockStatus !== 'all' || searchQuery) && (
                 <span className="text-[#2D6994] bg-[#EAF3F8] px-2 py-0.5 rounded-md text-[11px] font-semibold">
                   筛选中
                 </span>
               )}
             </div>
 
-            {(filterType || filterShelf || filterListedStatus !== 'all' || filterStockStatus !== 'all' || searchQuery) && (
+            {(filterShelf || filterListedStatus !== 'all' || filterStockStatus !== 'all' || searchQuery) && (
               <button 
                 onClick={() => { 
-                  setFilterType(''); 
                   setFilterShelf('');
                   setFilterListedStatus('all');
                   setFilterStockStatus('all');
@@ -2042,7 +2178,6 @@ export const App: React.FC = () => {
                     { key: 'id', label: '编号' },
                     { key: 'series', label: '作品/系列' }, 
                     { key: 'character', label: '角色' },
-                    { key: 'type', label: '类型' },
                     { key: 'style', label: '款式规格' },
                     { key: 'shelfLocation', label: '货架位置' },
                     { key: null, label: '上架状态' },
@@ -2074,7 +2209,7 @@ export const App: React.FC = () => {
               <tbody className="bg-white divide-y divide-slate-100">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-6 py-14 text-center text-[#697A88]">
+                    <td colSpan={11} className="px-6 py-14 text-center text-[#697A88]">
                       <div className="flex flex-col items-center">
                         <Package className="w-12 h-12 text-slate-300 mb-2" />
                         <p className="font-medium text-sm text-[#2C3842]">未找到匹配的商品</p>
@@ -2107,11 +2242,6 @@ export const App: React.FC = () => {
                       </td>
                       <td className="px-3.5 py-4 whitespace-nowrap text-sm text-[#2C3842]">
                         {item.character}
-                      </td>
-                      <td className="px-3.5 py-4 whitespace-nowrap text-xs">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md font-medium bg-[#EAF3F8] text-[#2D6994]">
-                          {item.type}
-                        </span>
                       </td>
                       <td className="px-3.5 py-4 text-sm text-[#2C3842] max-w-[200px]">
                         <div className="truncate font-medium" title={item.style}>{item.style || '-'}</div>

@@ -1,6 +1,6 @@
 export interface InventoryItem {
   id: number;
-  type: string;          // 物品类型
+  type?: string;         // 物品类型 (已弃用/选填兼容)
   style: string;         // 款式
   character: string;     // 角色
   series: string;        // 作品
@@ -14,6 +14,12 @@ export interface InventoryItem {
   isOnline?: boolean;
   isOffline?: boolean;
   createdAt: number;
+}
+
+export interface UndoAction {
+  description: string;
+  items: InventoryItem[];
+  timestamp: number;
 }
 
 export type SortField = 'id' | 'stock' | 'sold' | 'price' | 'revenue' | 'shelfLocation' | 'series' | 'character';
