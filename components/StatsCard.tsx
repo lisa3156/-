@@ -8,22 +8,40 @@ interface StatsCardProps {
   icon: LucideIcon;
   colorClass: string;
   onClick?: () => void;
+  actionButton?: React.ReactNode;
 }
 
-export const StatsCard: React.FC<StatsCardProps> = ({ title, value, subValue, icon: Icon, colorClass, onClick }) => {
+export const StatsCard: React.FC<StatsCardProps> = ({ 
+  title, 
+  value, 
+  subValue, 
+  icon: Icon, 
+  colorClass, 
+  onClick,
+  actionButton 
+}) => {
   return (
     <div 
       onClick={onClick}
-      className={`bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex items-center space-x-4 ${onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+      className={`bg-white rounded-2xl shadow-sm p-5 border border-slate-200/70 flex items-center justify-between relative transition-all ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:border-[#72B8D6]/50' : ''
+      }`}
     >
-      <div className={`p-3 rounded-full ${colorClass} bg-opacity-10`}>
-        <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+      <div className="flex items-center space-x-3.5 min-w-0">
+        <div className={`p-3 rounded-xl ${colorClass} bg-opacity-10 flex-shrink-0`}>
+          <Icon className={`w-6 h-6 ${colorClass.replace('bg-', 'text-')}`} />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-[#697A88] truncate">{title}</p>
+          <p className="text-xl sm:text-2xl font-bold text-[#2C3842] truncate tracking-tight">{value}</p>
+          {subValue && <p className="text-xs text-[#697A88]/80 mt-0.5 truncate">{subValue}</p>}
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-medium text-gray-500">{title}</p>
-        <p className="text-2xl font-bold text-gray-900">{value}</p>
-        {subValue && <p className="text-xs text-gray-400 mt-1">{subValue}</p>}
-      </div>
+      {actionButton && (
+        <div className="flex-shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+          {actionButton}
+        </div>
+      )}
     </div>
   );
 };

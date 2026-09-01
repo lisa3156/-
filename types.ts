@@ -1,20 +1,28 @@
 export interface InventoryItem {
   id: number;
-  type: string;      // 物品类型
-  style: string;     // 款式
-  character: string; // 角色
-  series: string;    // 作品
-  stock: number;     // 库存数量
-  price: number;     // 单价
-  sold: number;      // 已出数量
-  remark: string;    // 备注
-  isOnline: boolean; // 线上上架
-  isOffline: boolean;// 线下上架
+  type: string;          // 物品类型
+  style: string;         // 款式
+  character: string;     // 角色
+  series: string;        // 作品
+  shelfLocation?: string;// 货架位置 (如 HB3, HC3)
+  stock: number;         // 库存数量
+  price: number;         // 单价
+  sold: number;          // 已出数量
+  remark: string;        // 备注
+  isListed: boolean;     // 是否已上架
+  // Legacy fields for backward compatibility
+  isOnline?: boolean;
+  isOffline?: boolean;
   createdAt: number;
 }
 
-export type SortField = 'id' | 'stock' | 'sold' | 'price';
+export type SortField = 'id' | 'stock' | 'sold' | 'price' | 'revenue' | 'shelfLocation' | 'series' | 'character';
 export type SortOrder = 'asc' | 'desc';
+
+export interface SettlementSettings {
+  hb3Rate: number; // 默认 0.92 (即 92%)
+  hc3Rate: number; // 默认 0.80 (即 80%)
+}
 
 // Extend Window interface for SheetJS
 declare global {

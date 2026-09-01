@@ -3,8 +3,36 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>周边商品管理系统</title>
+    <title>周边库存管理表</title>
+    <meta name="description" content="全方位的周边商品库存管理系统，支持自动补全、批量操作、销售追踪、动态统计及 Excel 导出功能。" />
+    <meta property="og:title" content="周边库存管理表" />
+    <meta property="og:description" content="全方位的周边商品库存管理系统，支持自动补全、批量操作、销售追踪、动态统计及 Excel 导出功能。" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                primary: '#2D6994',     // 礁岩蓝（顶部导航、主要品牌色）
+                primaryHover: '#235375',
+                primaryLight: '#EAF3F8',
+                secondary: '#72B8D6',   // 海水蓝（模块标题装饰、图表、次级强调）
+                secondaryLight: '#E8F5FA',
+                peach: '#F5B8A9',       // 水蜜桃粉（精美标签、小高亮）
+                peachLight: '#FDF2EF',
+                terracotta: '#D87048',  // 陶土橙（风险、售罄告警、重点提醒）
+                terracottaLight: '#FAECE6',
+                text: '#2C3842',        // 主文本
+                muted: '#697A88',       // 次要文字与图标
+                bg: '#F8FAFC',          // 页面背景
+                card: '#FFFFFF'         // 卡片背景
+              }
+            }
+          }
+        }
+      }
+    </script>
     <!-- SheetJS for Excel Export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,9 +49,10 @@
   }
 }
 </script>
+<link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-gray-50 text-gray-900">
+  <body class="bg-[#F8FAFC] text-[#2C3842] antialiased">
     <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
-  </body>
+  <script type="module" src="/index.tsx"></script>
+</body>
 </html>
