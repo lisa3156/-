@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
   Plus, 
   Search, 
@@ -35,11 +35,31 @@ import {
   Layers,
   SlidersHorizontal,
   Undo2,
-  Redo2
+  Redo2,
+  Cloud,
+  CloudOff,
+  Loader2
 } from 'lucide-react';
 import { InventoryItem, SortField, SortOrder, SettlementSettings, UndoAction } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
 import { StatsCard } from './components/StatsCard';
+import { CloudSettingsModal } from './components/CloudSettingsModal';
+import { 
+  isSupabaseConfigured,
+  fetchInventoryFromCloud,
+  upsertInventoryItemCloud,
+  batchUpsertInventoryCloud,
+  deleteInventoryItemCloud,
+  batchDeleteInventoryCloud,
+  batchUpdateListingCloud,
+  batchUpdateShelfCloud,
+  quickSellCloud,
+  syncFullInventoryCloud,
+  fetchSettlementSettingsCloud,
+  saveSettlementSettingsCloud,
+  subscribeToCloudChanges,
+  STORAGE_MIGRATED_KEY
+} from './lib/supabase';
 
 const STORAGE_KEY = 'merch_tracker_cn_v1';
 const SETTLEMENT_KEY = 'merch_settlement_rates_v1';
@@ -51,6 +71,48 @@ const DEFAULT_SETTLEMENT: SettlementSettings = {
 
 const DEFAULT_SHELF_OPTIONS = ['HB3', 'HC3'];
 
+const DEFAULT_DEMO_ITEMS: InventoryItem[] = [
+  { 
+    id: 1001, 
+    style: '镭射票', 
+    character: '旅行者', 
+    series: '原神', 
+    shelfLocation: 'HB3', 
+    stock: 50, 
+    price: 15, 
+    sold: 12, 
+    remark: '热销中', 
+    isListed: true, 
+    createdAt: Date.now() 
+  },
+  { 
+    id: 1002, 
+    style: '15cm 站姿立牌', 
+    character: '芙莉莲', 
+    series: '葬送的芙莉莲', 
+    shelfLocation: 'HC3', 
+    stock: 0, 
+    price: 45, 
+    sold: 15, 
+    remark: '已售罄需补货', 
+    isListed: true, 
+    createdAt: Date.now() - 10000 
+  },
+  { 
+    id: 1003, 
+    style: '双面夹层亚克力挂件', 
+    character: '星野', 
+    series: '蔚蓝档案', 
+    shelfLocation: 'HB3', 
+    stock: 25, 
+    price: 20, 
+    sold: 8, 
+    remark: '', 
+    isListed: false, 
+    createdAt: Date.now() - 20000 
+  }
+];
+
 export const App: React.FC = () => {
   // --- State ---
   const [items, setItems] = useState<InventoryItem[]>([]);
@@ -58,6 +120,14 @@ export const App: React.FC = () => {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Cloud & Loading State
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isCloudConnected, setIsCloudConnected] = useState(false);
+  const [cloudError, setCloudError] = useState<string | null>(null);
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [isInitialLoaded, setIsInitialLoaded] = useState(false);
+
   // Modal & Drawer State
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
@@ -97,15 +167,37 @@ export const App: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('id');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
-  // --- Effects ---
+  // --- Helpers ---
 
   // Toast notification helper
-  const showToast = (text: string, isUndoNotification = true) => {
+  const showToast = useCallback((text: string, isUndoNotification = true) => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToastMessage({ text, isUndoNotification });
     toastTimerRef.current = setTimeout(() => {
       setToastMessage(null);
     }, 4500);
+  }, []);
+
+  // Parse local items safely
+  const parseLocalItems = (raw: string): InventoryItem[] => {
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .map((item: any) => ({
+          ...item,
+          id: Number(item.id),
+          stock: Number(item.stock) || 0,
+          sold: Number(item.sold) || 0,
+          price: Number(item.price) || 0,
+          shelfLocation: item.shelfLocation ? String(item.shelfLocation).trim() : 'HB3',
+          isListed: item.isListed !== undefined ? !!item.isListed : !!(item.isOnline || item.isOffline),
+          createdAt: item.createdAt || Date.now()
+        }))
+        .filter((item: any) => !isNaN(item.id));
+    } catch {
+      return [];
+    }
   };
 
   // Push snapshot to undo stack
@@ -115,20 +207,46 @@ export const App: React.FC = () => {
     showToast(description, true);
   };
 
-  // Undo Handler
-  const handleUndo = () => {
+  // Undo Handler with Cloud Sync
+  const handleUndo = async () => {
     if (undoStack.length === 0) return;
     const [actionToUndo, ...remainingUndo] = undoStack;
+
+    if (isSupabaseConfigured()) {
+      setIsSyncing(true);
+      try {
+        await syncFullInventoryCloud(actionToUndo.items);
+      } catch (err: any) {
+        setIsSyncing(false);
+        alert(`撤销同步到云端失败：${err.message || '请检查网络连接'}`);
+        return;
+      }
+      setIsSyncing(false);
+    }
+
     setRedoStack(prev => [{ description: actionToUndo.description, items, timestamp: Date.now() }, ...prev.slice(0, 29)]);
     setUndoStack(remainingUndo);
     setItems(actionToUndo.items);
     showToast(`已撤销：${actionToUndo.description}`, false);
   };
 
-  // Redo Handler
-  const handleRedo = () => {
+  // Redo Handler with Cloud Sync
+  const handleRedo = async () => {
     if (redoStack.length === 0) return;
     const [actionToRedo, ...remainingRedo] = redoStack;
+
+    if (isSupabaseConfigured()) {
+      setIsSyncing(true);
+      try {
+        await syncFullInventoryCloud(actionToRedo.items);
+      } catch (err: any) {
+        setIsSyncing(false);
+        alert(`重做同步到云端失败：${err.message || '请检查网络连接'}`);
+        return;
+      }
+      setIsSyncing(false);
+    }
+
     setUndoStack(prev => [{ description: actionToRedo.description, items, timestamp: Date.now() }, ...prev.slice(0, 29)]);
     setRedoStack(remainingRedo);
     setItems(actionToRedo.items);
@@ -165,110 +283,165 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [undoStack, redoStack, items]);
 
-  // Load Settlement Settings on mount
-  useEffect(() => {
-    const savedSettings = localStorage.getItem(SETTLEMENT_KEY);
-    if (savedSettings) {
+  // Save Settlement Settings on change with Cloud Sync
+  const updateSettlementSettings = async (newSettings: SettlementSettings) => {
+    if (isSupabaseConfigured()) {
+      setIsSyncing(true);
       try {
-        const parsed = JSON.parse(savedSettings);
-        setSettlementSettings({
-          hb3Rate: typeof parsed.hb3Rate === 'number' ? parsed.hb3Rate : DEFAULT_SETTLEMENT.hb3Rate,
-          hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate
-        });
-      } catch (e) {
-        console.error("Failed to parse settlement settings", e);
+        await saveSettlementSettingsCloud(newSettings);
+      } catch (err: any) {
+        setIsSyncing(false);
+        alert(`结算比例保存失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+        return;
       }
+      setIsSyncing(false);
     }
-  }, []);
-
-  // Save Settlement Settings on change
-  const updateSettlementSettings = (newSettings: SettlementSettings) => {
     setSettlementSettings(newSettings);
     localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(newSettings));
+    showToast('结算比例已更新并同步到云端', false);
   };
 
-  // Load data on mount with Sanitization & Backward compatibility migration
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+  // --- Initial Data Loading & Migration Workflow ---
+  const loadCloudData = useCallback(async () => {
+    setIsLoading(true);
+    setCloudError(null);
+
+    // If Supabase is not configured, fallback to localStorage
+    if (!isSupabaseConfigured()) {
+      setIsCloudConnected(false);
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setItems(parseLocalItems(saved));
+      } else {
+        setItems(DEFAULT_DEMO_ITEMS);
+      }
+
+      const savedSettings = localStorage.getItem(SETTLEMENT_KEY);
+      if (savedSettings) {
+        try {
+          const parsed = JSON.parse(savedSettings);
+          setSettlementSettings({
+            hb3Rate: typeof parsed.hb3Rate === 'number' ? parsed.hb3Rate : DEFAULT_SETTLEMENT.hb3Rate,
+            hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate
+          });
+        } catch (e) {
+          console.error("Failed to parse settlement settings", e);
+        }
+      }
+      setIsInitialLoaded(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Supabase is configured: query cloud database
+    try {
+      // 1. Settlement settings sync
       try {
-        const parsedData = JSON.parse(saved);
-        if (Array.isArray(parsedData)) {
-          const sanitizedData: InventoryItem[] = parsedData
-            .map((item: any) => {
-              // Backward compatibility: If isListed is missing, infer from isOnline || isOffline
-              const isListed = item.isListed !== undefined 
-                ? !!item.isListed 
-                : !!(item.isOnline || item.isOffline);
-                
-              return {
-                ...item,
-                id: Number(item.id),
-                stock: Number(item.stock) || 0,
-                sold: Number(item.sold) || 0,
-                price: Number(item.price) || 0,
-                shelfLocation: item.shelfLocation ? String(item.shelfLocation).trim() : 'HB3',
-                isListed,
-                createdAt: item.createdAt || Date.now()
+        const remoteSettings = await fetchSettlementSettingsCloud();
+        if (remoteSettings) {
+          setSettlementSettings(remoteSettings);
+          localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(remoteSettings));
+        } else {
+          // Supabase has no settings row yet; check local storage to migrate
+          const savedSettings = localStorage.getItem(SETTLEMENT_KEY);
+          let settingsToUpload = DEFAULT_SETTLEMENT;
+          if (savedSettings) {
+            try {
+              const parsed = JSON.parse(savedSettings);
+              settingsToUpload = {
+                hb3Rate: typeof parsed.hb3Rate === 'number' ? parsed.hb3Rate : DEFAULT_SETTLEMENT.hb3Rate,
+                hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate
               };
-            })
-            .filter((item) => !isNaN(item.id));
-            
-          setItems(sanitizedData);
+            } catch {}
+          }
+          await saveSettlementSettingsCloud(settingsToUpload);
+          setSettlementSettings(settingsToUpload);
         }
       } catch (e) {
-        console.error("Failed to parse saved data", e);
+        console.warn('Settlement cloud sync warning:', e);
       }
-    } else {
-      // Seed initial demo data (without requiring type)
-      setItems([
-        { 
-          id: 1001, 
-          style: '镭射票', 
-          character: '旅行者', 
-          series: '原神', 
-          shelfLocation: 'HB3', 
-          stock: 50, 
-          price: 15, 
-          sold: 12, 
-          remark: '热销中', 
-          isListed: true, 
-          createdAt: Date.now() 
-        },
-        { 
-          id: 1002, 
-          style: '15cm 站姿立牌', 
-          character: '芙莉莲', 
-          series: '葬送的芙莉莲', 
-          shelfLocation: 'HC3', 
-          stock: 0, 
-          price: 45, 
-          sold: 15, 
-          remark: '已售罄需补货', 
-          isListed: true, 
-          createdAt: Date.now() - 10000 
-        },
-        { 
-          id: 1003, 
-          style: '双面夹层亚克力挂件', 
-          character: '星野', 
-          series: '蔚蓝档案', 
-          shelfLocation: 'HB3', 
-          stock: 25, 
-          price: 20, 
-          sold: 8, 
-          remark: '', 
-          isListed: false, 
-          createdAt: Date.now() - 20000 
-        }
-      ]);
-    }
-  }, []);
 
-  // Save data on change
+      // 2. Inventory items sync & one-time migration
+      const cloudItems = await fetchInventoryFromCloud();
+
+      // Check migration condition:
+      // If cloud is empty, AND localStorage has data, AND not marked as migrated:
+      const localDataRaw = localStorage.getItem(STORAGE_KEY);
+      const isMigrated = localStorage.getItem(STORAGE_MIGRATED_KEY) === 'true';
+
+      if (cloudItems.length === 0 && localDataRaw && !isMigrated) {
+        const localItems = parseLocalItems(localDataRaw);
+        if (localItems.length > 0) {
+          // Perform one-time migration to Supabase
+          await batchUpsertInventoryCloud(localItems);
+          localStorage.setItem(STORAGE_MIGRATED_KEY, 'true');
+          const reloaded = await fetchInventoryFromCloud();
+          setItems(reloaded);
+          setIsCloudConnected(true);
+          setIsInitialLoaded(true);
+          showToast(`已成功将本地 ${reloaded.length} 项库存迁移至云端`, false);
+          return;
+        }
+      }
+
+      // Supabase already has data or is ready
+      setItems(cloudItems);
+      setIsCloudConnected(true);
+      setIsInitialLoaded(true);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cloudItems));
+    } catch (err: any) {
+      console.error('Failed to load from cloud:', err);
+      setCloudError('云端数据加载失败，请检查网络连接或 Supabase 配置');
+      setIsCloudConnected(false);
+
+      // Graceful fallback to local cache to prevent blank screen
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setItems(parseLocalItems(saved));
+      }
+      showToast('云端加载失败，已加载本地缓存数据', false);
+      setIsInitialLoaded(true);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [showToast]);
+
+  // Initial load on mount
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+    loadCloudData();
+  }, [loadCloudData]);
+
+  // Realtime subscription for multi-device sync
+  useEffect(() => {
+    if (!isCloudConnected || !isSupabaseConfigured()) return;
+
+    const unsubscribe = subscribeToCloudChanges(
+      async () => {
+        try {
+          const freshItems = await fetchInventoryFromCloud();
+          setItems(freshItems);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(freshItems));
+        } catch (e) {
+          console.warn('Realtime refresh error:', e);
+        }
+      },
+      (newSettings) => {
+        setSettlementSettings(newSettings);
+        localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(newSettings));
+      }
+    );
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isCloudConnected]);
+
+  // Local storage caching only after initial load finishes
+  useEffect(() => {
+    if (isInitialLoaded) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+  }, [items, isInitialLoaded]);
 
   // --- Derived Data for Autocomplete & Filters ---
   const existingSeries = useMemo(() => Array.from(new Set(items.map(i => i.series))).filter(Boolean), [items]);
@@ -382,22 +555,33 @@ export const App: React.FC = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSyncing(true);
     
     if (editingId) {
       // Update existing
       const existingItem = items.find(i => i.id === editingId);
+      const updatedItem: InventoryItem = { 
+        ...existingItem, 
+        ...formData,
+        id: editingId,
+        shelfLocation: formData.shelfLocation ? String(formData.shelfLocation).trim() : 'HB3',
+        isListed: formData.isListed !== undefined ? !!formData.isListed : true
+      } as InventoryItem;
+
+      if (isSupabaseConfigured()) {
+        try {
+          await upsertInventoryItemCloud(updatedItem);
+        } catch (err: any) {
+          setIsSyncing(false);
+          alert(`保存失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+          return;
+        }
+      }
+
       pushUndo(`修改商品 #${editingId} (${existingItem?.character || ''} ${existingItem?.style || ''})`, items);
-      
-      setItems(prev => prev.map(item => 
-        item.id === editingId ? { 
-          ...item, 
-          ...formData,
-          shelfLocation: formData.shelfLocation ? String(formData.shelfLocation).trim() : 'HB3',
-          isListed: formData.isListed !== undefined ? !!formData.isListed : true
-        } as InventoryItem : item
-      ));
+      setItems(prev => prev.map(item => item.id === editingId ? updatedItem : item));
     } else {
       // Create new
       const maxId = items.length > 0 ? Math.max(0, ...items.map(i => i.id)) : 1000;
@@ -411,11 +595,22 @@ export const App: React.FC = () => {
         isListed: formData.isListed !== undefined ? !!formData.isListed : true,
         createdAt: Date.now()
       };
+
+      if (isSupabaseConfigured()) {
+        try {
+          await upsertInventoryItemCloud(newItem);
+        } catch (err: any) {
+          setIsSyncing(false);
+          alert(`新增商品失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+          return;
+        }
+      }
       
       pushUndo(`新增商品 #${newId} (${newItem.character || ''} ${newItem.style || ''})`, items);
       setItems(prev => [newItem, ...prev]);
     }
     
+    setIsSyncing(false);
     resetForm();
   };
 
@@ -445,7 +640,7 @@ export const App: React.FC = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = (e: React.MouseEvent, id: number) => {
+  const handleDelete = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     if (isNaN(id)) {
       alert("无法删除 ID 无效的条目，请尝试刷新页面。");
@@ -454,6 +649,18 @@ export const App: React.FC = () => {
 
     const itemToDelete = items.find(i => String(i.id) === String(id));
     if (window.confirm(`确定要删除商品 #${id} (${itemToDelete?.character || ''} ${itemToDelete?.style || ''}) 吗？`)) {
+      if (isSupabaseConfigured()) {
+        setIsSyncing(true);
+        try {
+          await deleteInventoryItemCloud(id);
+        } catch (err: any) {
+          setIsSyncing(false);
+          alert(`删除失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+          return;
+        }
+        setIsSyncing(false);
+      }
+
       pushUndo(`删除商品 #${id} (${itemToDelete?.character || ''} ${itemToDelete?.style || ''})`, items);
       setItems(prev => prev.filter(i => String(i.id) !== String(id)));
       setSelectedIds(prev => {
@@ -464,19 +671,46 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleBatchDelete = () => {
+  const handleBatchDelete = async () => {
     if (selectedIds.size === 0) return;
     if (window.confirm(`确定要删除选中的 ${selectedIds.size} 项商品吗？`)) {
+      const idsArray = Array.from(selectedIds) as number[];
+      if (isSupabaseConfigured()) {
+        setIsSyncing(true);
+        try {
+          await batchDeleteInventoryCloud(idsArray);
+        } catch (err: any) {
+          setIsSyncing(false);
+          alert(`批量删除失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+          return;
+        }
+        setIsSyncing(false);
+      }
+
       pushUndo(`批量删除 ${selectedIds.size} 项商品`, items);
-      const idsToRemove = new Set(Array.from(selectedIds).map(String));
+      const idsToRemove = new Set(idsArray.map(String));
       setItems(prev => prev.filter(item => !idsToRemove.has(String(item.id))));
       setSelectedIds(new Set());
       setIsSidebarOpen(false);
     }
   };
 
-  const handleBulkListingUpdate = (isListed: boolean) => {
+  const handleBulkListingUpdate = async (isListed: boolean) => {
     if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds) as number[];
+
+    if (isSupabaseConfigured()) {
+      setIsSyncing(true);
+      try {
+        await batchUpdateListingCloud(idsArray, isListed);
+      } catch (err: any) {
+        setIsSyncing(false);
+        alert(`批量更新上架状态失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+        return;
+      }
+      setIsSyncing(false);
+    }
+
     pushUndo(`批量${isListed ? '上架' : '下架'} ${selectedIds.size} 项商品`, items);
     setItems(prev => prev.map(item => {
       if (!selectedIds.has(item.id)) return item;
@@ -485,8 +719,22 @@ export const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
-  const handleBulkShelfUpdate = (shelfLocation: string) => {
+  const handleBulkShelfUpdate = async (shelfLocation: string) => {
     if (selectedIds.size === 0) return;
+    const idsArray = Array.from(selectedIds) as number[];
+
+    if (isSupabaseConfigured()) {
+      setIsSyncing(true);
+      try {
+        await batchUpdateShelfCloud(idsArray, shelfLocation);
+      } catch (err: any) {
+        setIsSyncing(false);
+        alert(`批量修改货架失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+        return;
+      }
+      setIsSyncing(false);
+    }
+
     pushUndo(`批量修改货架为 ${shelfLocation} (${selectedIds.size} 项)`, items);
     setItems(prev => prev.map(item => {
       if (!selectedIds.has(item.id)) return item;
@@ -495,7 +743,7 @@ export const App: React.FC = () => {
     setIsSidebarOpen(false);
   };
 
-  const handleQuickSell = (e: React.MouseEvent, id: number) => {
+  const handleQuickSell = async (e: React.MouseEvent, id: number) => {
     e.stopPropagation();
     const itemToSell = items.find(i => i.id === id);
     if (!itemToSell || itemToSell.stock <= 0) {
@@ -503,13 +751,28 @@ export const App: React.FC = () => {
       return;
     }
 
+    const nextStock = itemToSell.stock - 1;
+    const nextSold = itemToSell.sold + 1;
+
+    if (isSupabaseConfigured()) {
+      setIsSyncing(true);
+      try {
+        await quickSellCloud(id, nextStock, nextSold);
+      } catch (err: any) {
+        setIsSyncing(false);
+        alert(`售出更新失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
+        return;
+      }
+      setIsSyncing(false);
+    }
+
     pushUndo(`快速售出 +1 (${itemToSell.character || ''} ${itemToSell.style || ''})`, items);
     setItems(prev => prev.map(item => {
       if (item.id === id) {
         return {
           ...item,
-          stock: item.stock - 1,
-          sold: item.sold + 1
+          stock: nextStock,
+          sold: nextSold
         };
       }
       return item;
@@ -649,7 +912,7 @@ export const App: React.FC = () => {
     }
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
         const data = evt.target?.result;
         const workbook = window.XLSX.read(data, { type: 'binary' });
@@ -734,9 +997,21 @@ export const App: React.FC = () => {
           .filter(i => !isNaN(i.id))
           .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
+        if (isSupabaseConfigured()) {
+          setIsSyncing(true);
+          try {
+            await batchUpsertInventoryCloud(validItems);
+          } catch (err: any) {
+            setIsSyncing(false);
+            alert(`Excel 导入同步到云端失败：${err.message || '请检查网络连接'}`);
+            return;
+          }
+          setIsSyncing(false);
+        }
+
         pushUndo(`导入 Excel 数据 (新增 ${addedCount} 条, 更新 ${updatedCount} 条)`, items);
         setItems(validItems);
-        alert(`导入完成！新增: ${addedCount} 条，更新: ${updatedCount} 条。`);
+        alert(`导入完成！新增: ${addedCount} 条，更新: ${updatedCount} 条。${isSupabaseConfigured() ? '已成功同步至云端。' : ''}`);
 
       } catch (error) {
         console.error("Import error:", error);
@@ -1074,7 +1349,7 @@ export const App: React.FC = () => {
       e.target.value = '';
     };
 
-    const tryRestore = (jsonContent: string) => {
+    const tryRestore = async (jsonContent: string) => {
       if (!jsonContent) return;
       if (!window.confirm('警告：此操作将覆盖当前所有数据！确定要恢复吗？')) return;
       
@@ -1093,9 +1368,21 @@ export const App: React.FC = () => {
           createdAt: item.createdAt || Date.now()
         })).filter((item: any) => !isNaN(item.id));
 
+        if (isSupabaseConfigured()) {
+          setIsSyncing(true);
+          try {
+            await syncFullInventoryCloud(sanitizedData);
+          } catch (err: any) {
+            setIsSyncing(false);
+            alert(`JSON 备份数据同步到云端失败：${err.message || '请检查网络连接'}`);
+            return;
+          }
+          setIsSyncing(false);
+        }
+
         pushUndo(`从 JSON 备份恢复数据 (${sanitizedData.length} 条)`, items);
         setItems(sanitizedData);
-        alert(`成功恢复 ${sanitizedData.length} 条数据！`);
+        alert(`成功恢复 ${sanitizedData.length} 条数据！${isSupabaseConfigured() ? '已同步至云端。' : ''}`);
         setIsBackupModalOpen(false);
       } catch (e) {
         alert('数据格式错误，请确保导入的是正确的 JSON 备份文件。');
@@ -1234,6 +1521,15 @@ export const App: React.FC = () => {
       {isBackupModalOpen && <BackupModal />}
       {isSalesDetailModalOpen && <SalesDetailModal />}
       {isSettlementModalOpen && <SettlementModal />}
+      <CloudSettingsModal 
+        isOpen={isCloudModalOpen}
+        onClose={() => setIsCloudModalOpen(false)}
+        isCloudConnected={isCloudConnected}
+        onRefreshFromCloud={loadCloudData}
+        items={items}
+        settlementSettings={settlementSettings}
+        onToast={(msg) => showToast(msg, false)}
+      />
 
       {/* Mobile Sidebar (Drawer) with Settlement Ratio Settings */}
       {isSidebarOpen && (
@@ -1261,6 +1557,22 @@ export const App: React.FC = () => {
               >
                 <Plus className="w-4 h-4 mr-2 text-[#2C3842]" />
                 新建商品登记
+              </button>
+
+              {/* Cloud Sync in Mobile Drawer */}
+              <button 
+                onClick={() => { setIsCloudModalOpen(true); setIsSidebarOpen(false); }}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center">
+                  <Cloud className="w-4 h-4 mr-3 text-[#2D6994]" />
+                  <span>云端数据同步 (Supabase)</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  isCloudConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {isCloudConnected ? '已连接' : '未连接'}
+                </span>
               </button>
 
               {/* Mobile Settlement Ratio Settings Section */}
@@ -1329,14 +1641,14 @@ export const App: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button 
-                      onClick={() => handleBulkListingUpdate(true)}
+                      onClick={() => handleBulkListingUpdate(true)} 
                       className="flex items-center justify-center p-2 bg-white text-emerald-800 border border-emerald-200 rounded-lg text-xs font-medium hover:bg-emerald-50"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
                       设为已上架
                     </button>
                     <button 
-                      onClick={() => handleBulkListingUpdate(false)}
+                      onClick={() => handleBulkListingUpdate(false)} 
                       className="flex items-center justify-center p-2 bg-white text-[#2C3842] border border-slate-200 rounded-lg text-xs font-medium hover:bg-slate-50"
                     >
                       <XCircle className="w-3.5 h-3.5 mr-1" />
@@ -1345,20 +1657,20 @@ export const App: React.FC = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
                     <button 
-                      onClick={() => handleBulkShelfUpdate('HB3')}
+                      onClick={() => handleBulkShelfUpdate('HB3')} 
                       className="flex items-center justify-center p-2 bg-white text-amber-800 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-50"
                     >
                       设为货架 HB3
                     </button>
                     <button 
-                      onClick={() => handleBulkShelfUpdate('HC3')}
+                      onClick={() => handleBulkShelfUpdate('HC3')} 
                       className="flex items-center justify-center p-2 bg-white text-purple-800 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-50"
                     >
                       设为货架 HC3
                     </button>
                   </div>
                   <button 
-                    onClick={handleBatchDelete}
+                    onClick={handleBatchDelete} 
                     className="w-full flex items-center justify-center p-2 bg-[#D87048] text-white rounded-lg text-xs font-semibold hover:bg-[#c25e37] shadow-sm"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1" />
@@ -1489,6 +1801,26 @@ export const App: React.FC = () => {
               </div>
             )}
 
+            {/* Cloud Sync Status Button */}
+            <button
+              onClick={() => setIsCloudModalOpen(true)}
+              className={`flex items-center px-2.5 py-1.5 text-xs font-semibold rounded-lg transition-colors border ${
+                isCloudConnected
+                  ? 'text-emerald-100 bg-emerald-900/40 hover:bg-emerald-900/60 border-emerald-500/40'
+                  : 'text-amber-100 bg-amber-900/40 hover:bg-amber-900/60 border-amber-500/40'
+              }`}
+              title={isCloudConnected ? "云端同步已连接 (Supabase) · 点击查看状态" : "未连接 Supabase 云端 · 点击配置"}
+            >
+              {isSyncing ? (
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-[#72B8D6]" />
+              ) : isCloudConnected ? (
+                <Cloud className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
+              ) : (
+                <CloudOff className="w-3.5 h-3.5 mr-1.5 text-amber-400" />
+              )}
+              <span>{isSyncing ? '同步中' : isCloudConnected ? '云端已同步' : '未连接云端'}</span>
+            </button>
+
             {/* Undo / Redo Toolbar Buttons */}
             <div className="flex items-center gap-1 bg-white/10 p-1 rounded-xl border border-white/20">
               <button 
@@ -1563,6 +1895,21 @@ export const App: React.FC = () => {
 
           {/* Mobile Menu Trigger */}
           <div className="md:hidden flex items-center gap-1.5">
+            <button
+              onClick={() => setIsCloudModalOpen(true)}
+              className={`p-2 rounded-lg transition-colors ${
+                isCloudConnected ? 'text-emerald-300 bg-emerald-900/40' : 'text-amber-300 bg-amber-900/40'
+              }`}
+              title={isCloudConnected ? "云端同步已连接" : "未连接云端"}
+            >
+              {isSyncing ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#72B8D6]" />
+              ) : isCloudConnected ? (
+                <Cloud className="w-4 h-4" />
+              ) : (
+                <CloudOff className="w-4 h-4" />
+              )}
+            </button>
             <button 
               onClick={handleUndo}
               disabled={undoStack.length === 0}
@@ -1608,6 +1955,49 @@ export const App: React.FC = () => {
             >
               <X className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Initial Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-xs">
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-150">
+            <Loader2 className="w-8 h-8 animate-spin text-[#2D6994]" />
+            <div className="text-sm font-bold text-[#2C3842]">正在连接 Supabase 加载云端库存...</div>
+            <div className="text-xs text-[#697A88]">多设备数据读取与状态核对中</div>
+          </div>
+        </div>
+      )}
+
+      {/* Cloud Error Notice */}
+      {cloudError && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+          <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-3 text-xs md:text-sm text-red-800 shadow-sm">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <span>{cloudError}（当前显示本地缓存，不影响正常使用）</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={loadCloudData}
+                className="px-3 py-1.5 bg-red-100 hover:bg-red-200 text-red-800 rounded-lg text-xs font-bold transition-colors"
+              >
+                重试连接
+              </button>
+              <button
+                onClick={() => setIsCloudModalOpen(true)}
+                className="px-3 py-1.5 bg-white border border-red-200 hover:bg-red-50 text-red-800 rounded-lg text-xs font-semibold transition-colors"
+              >
+                检查配置
+              </button>
+              <button
+                onClick={() => setCloudError(null)}
+                className="p-1 text-red-400 hover:text-red-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2163,10 +2553,10 @@ export const App: React.FC = () => {
         {/* Desktop: Table View */}
         <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200">
+            <table className="min-w-[1080px] w-full divide-y divide-slate-200">
               <thead className="bg-[#F8FAFC]">
                 <tr>
-                  <th className="px-5 py-3.5 w-10">
+                  <th className="px-4 py-3.5 w-12 min-w-[48px]">
                     <input 
                       type="checkbox" 
                       className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
@@ -2175,24 +2565,24 @@ export const App: React.FC = () => {
                     />
                   </th>
                   {[
-                    { key: 'id', label: '编号' },
-                    { key: 'series', label: '作品/系列' }, 
-                    { key: 'character', label: '角色' },
-                    { key: 'style', label: '款式规格' },
-                    { key: 'shelfLocation', label: '货架位置' },
-                    { key: null, label: '上架状态' },
-                    { key: 'price', label: '单价' },
-                    { key: 'stock', label: '库存' },
-                    { key: 'sold', label: '已出' },
-                    { key: 'revenue', label: '销售总额' },
-                    { key: null, label: '操作' }
+                    { key: 'id', label: '编号', thClass: 'w-20 min-w-[70px]' },
+                    { key: 'series', label: '作品/系列', thClass: 'min-w-[110px]' }, 
+                    { key: 'character', label: '角色', thClass: 'min-w-[90px]' },
+                    { key: 'style', label: '款式规格', thClass: 'min-w-[160px]' },
+                    { key: 'shelfLocation', label: '货架位置', thClass: 'w-24 min-w-[85px]' },
+                    { key: null, label: '上架状态', thClass: 'w-24 min-w-[85px]' },
+                    { key: 'price', label: '单价', thClass: 'w-24 min-w-[80px]' },
+                    { key: 'stock', label: '库存', thClass: 'w-20 min-w-[70px]' },
+                    { key: 'sold', label: '已出', thClass: 'w-20 min-w-[70px]' },
+                    { key: 'revenue', label: '销售总额', thClass: 'w-28 min-w-[90px]' },
+                    { key: null, label: '操作', thClass: 'w-40 min-w-[155px] text-center' }
                   ].map((col, idx) => (
                     <th 
                       key={idx}
-                      className="px-3.5 py-3.5 text-left text-xs font-bold text-[#697A88] uppercase tracking-wider cursor-pointer hover:bg-slate-100 transition-colors whitespace-nowrap"
+                      className={`px-3.5 py-3.5 text-xs font-bold text-[#697A88] uppercase tracking-wider ${col.key ? 'cursor-pointer hover:bg-slate-100' : ''} transition-colors whitespace-nowrap ${col.thClass || 'text-left'}`}
                       onClick={() => col.key && handleSort(col.key as SortField)}
                     >
-                      <div className="flex items-center gap-1">
+                      <div className={`flex items-center gap-1 ${col.label === '操作' ? 'justify-center' : ''}`}>
                         {col.label}
                         {col.key && (
                           sortField === col.key ? (
@@ -2225,7 +2615,7 @@ export const App: React.FC = () => {
                         selectedIds.has(item.id) ? 'bg-[#EAF3F8]/40' : 'hover:bg-slate-50/70'
                       }`}
                     >
-                      <td className="px-5 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <input 
                           type="checkbox" 
                           className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
@@ -2294,34 +2684,34 @@ export const App: React.FC = () => {
                         ¥{(item.sold * item.price).toFixed(2)}
                       </td>
                       {/* Actions Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex items-center gap-1.5">
+                      <td className="px-3.5 py-4 whitespace-nowrap text-center text-sm font-medium w-40 min-w-[155px]">
+                        <div className="flex items-center justify-center gap-1.5 flex-nowrap min-w-[145px]">
                           <button 
                             onClick={(e) => handleQuickSell(e, item.id)}
                             disabled={item.stock <= 0}
                             title="快速售出 (+1 已出, -1 库存)"
-                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                           >
                             <ShoppingCart className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleDuplicate(e, item)}
                             title="复制为新商品"
-                            className="p-1.5 text-[#2C3842] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                            className="p-1.5 text-[#2C3842] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex-shrink-0"
                           >
                             <Copy className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleEdit(e, item)}
                             title="编辑"
-                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg transition-colors"
+                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg transition-colors flex-shrink-0"
                           >
                             <Edit2 className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleDelete(e, item.id)}
                             title="删除"
-                            className="p-1.5 text-[#D87048] bg-[#FDF1EC] hover:bg-[#fae2d9] rounded-lg transition-colors"
+                            className="p-1.5 text-[#D87048] bg-[#FDF1EC] hover:bg-[#fae2d9] rounded-lg transition-colors flex-shrink-0"
                           >
                             <Trash2 className="w-4 h-4 pointer-events-none" />
                           </button>
