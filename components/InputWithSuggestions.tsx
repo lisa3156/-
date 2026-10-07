@@ -37,8 +37,8 @@ export const InputWithSuggestions: React.FC<InputWithSuggestionsProps> = ({
 
   return (
     <div className="relative" ref={wrapperRef}>
-      <label className="block text-sm font-medium text-[#2C3842] mb-1">
-        {label} {required && <span className="text-[#D87048]">*</span>}
+      <label className="block text-sm font-medium text-[#3A2923] mb-1">
+        {label} {required && <span className="text-[#8D4429]">*</span>}
       </label>
       <input
         type="text"
@@ -48,17 +48,17 @@ export const InputWithSuggestions: React.FC<InputWithSuggestionsProps> = ({
           setShowSuggestions(true);
         }}
         onFocus={() => setShowSuggestions(true)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] transition-colors text-base md:text-sm text-[#2C3842]"
+        className="w-full px-3 py-2 border border-[#AC9B95]/40 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] transition-colors text-base md:text-sm text-[#3A2923]"
         placeholder={placeholder}
         required={required}
       />
       
       {showSuggestions && filteredSuggestions.length > 0 && (
-        <ul className="absolute z-10 w-full bg-white mt-1 border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+        <ul className="absolute z-10 w-full bg-white mt-1 border border-[#AC9B95]/30 rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filteredSuggestions.map((suggestion, index) => (
             <li
               key={index}
-              className="px-3 py-2 hover:bg-[#EAF3F8] hover:text-[#2D6994] cursor-pointer text-sm text-[#2C3842] font-medium"
+              className="px-3 py-2 hover:bg-[#F5F1EF] hover:text-[#8D4429] cursor-pointer text-sm text-[#3A2923] font-medium"
               onClick={() => {
                 onChange(suggestion);
                 setShowSuggestions(false);

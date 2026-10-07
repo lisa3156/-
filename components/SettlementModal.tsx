@@ -135,62 +135,62 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl relative z-10 flex flex-col max-h-[92vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Header */}
-        <div className="flex justify-between items-center p-4 sm:p-5 border-b bg-slate-50/70">
+        <div className="flex justify-between items-center p-4 sm:p-5 border-b border-[#AC9B95]/30 bg-[#FAF7F5]">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-[#EAF3F8] text-[#2D6994] rounded-xl">
+            <div className="p-2 bg-[#F5F1EF] text-[#5F3E32] rounded-xl border border-[#AC9B95]/30">
               <Calculator className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#2C3842]">结算金额管理与核销明细</h3>
-              <p className="text-xs text-[#697A88]">查看总额、录入已结月份金额、核对待结算余额</p>
+              <h3 className="text-base font-bold text-[#3A2923]">结算金额管理与核销明细</h3>
+              <p className="text-xs text-[#8C776D]">查看总额、录入已结月份金额、核对待结算余额</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-slate-100">
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-stone-100">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Quick Summary Cards Banner */}
-        <div className="p-4 bg-slate-50 border-b border-slate-200/80">
+        <div className="p-4 bg-[#FAF7F5] border-b border-[#AC9B95]/30">
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-              <div className="text-[11px] font-medium text-[#697A88]">总结算金额</div>
-              <div className="text-base sm:text-lg font-bold text-[#2C3842] mt-0.5 truncate">
+            <div className="bg-white p-3 rounded-xl border border-[#AC9B95]/30 shadow-xs">
+              <div className="text-[11px] font-medium text-[#8C776D]">总结算金额</div>
+              <div className="text-base sm:text-lg font-bold text-[#3A2923] mt-0.5 truncate">
                 ¥{stats.settlementAmount.toFixed(1)}
               </div>
             </div>
-            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
-              <div className="text-[11px] font-medium text-[#697A88]">累计已结算</div>
-              <div className="text-base sm:text-lg font-bold text-[#2D6994] mt-0.5 truncate">
+            <div className="bg-white p-3 rounded-xl border border-[#AC9B95]/30 shadow-xs">
+              <div className="text-[11px] font-medium text-[#8C776D]">累计已结算</div>
+              <div className="text-base sm:text-lg font-bold text-[#8D4429] mt-0.5 truncate">
                 ¥{stats.totalPaidAmount.toFixed(1)}
               </div>
             </div>
-            <div className="bg-[#FEF6EE] p-3 rounded-xl border border-[#F9DBAF] shadow-xs">
-              <div className="text-[11px] font-bold text-[#B54708]">待结算金额</div>
-              <div className="text-base sm:text-lg font-extrabold text-[#D87048] mt-0.5 truncate">
+            <div className="bg-[#FDF3ED] p-3 rounded-xl border border-[#E8C5B0] shadow-xs">
+              <div className="text-[11px] font-bold text-[#BB754B]">待结算金额</div>
+              <div className="text-base sm:text-lg font-extrabold text-[#BB754B] mt-0.5 truncate">
                 ¥{stats.pendingSettlementAmount.toFixed(1)}
               </div>
             </div>
           </div>
-          <div className="text-[11px] text-[#697A88] text-center mt-2 flex items-center justify-center gap-1">
+          <div className="text-[11px] text-[#8C776D] text-center mt-2 flex items-center justify-center gap-1">
             <span>待结算金额 = 总结算金额 (¥{stats.settlementAmount.toFixed(1)}) - 累计已结算 (¥{stats.totalPaidAmount.toFixed(1)})</span>
           </div>
         </div>
 
         {/* Tab Selector */}
-        <div className="flex border-b border-slate-200 bg-white px-4 pt-2">
+        <div className="flex border-b border-[#AC9B95]/30 bg-white px-4 pt-2">
           <button
             onClick={() => setActiveTab('payouts')}
             className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
               activeTab === 'payouts'
-                ? 'border-[#2D6994] text-[#2D6994]'
-                : 'border-transparent text-[#697A88] hover:text-[#2C3842]'
+                ? 'border-[#8D4429] text-[#8D4429]'
+                : 'border-transparent text-[#8C776D] hover:text-[#3A2923]'
             }`}
           >
             <History className="w-4 h-4" />
             <span>已结算明细与录入</span>
             {payoutsList.length > 0 && (
-              <span className="px-1.5 py-0.2 bg-[#EAF3F8] text-[#2D6994] rounded-full text-[10px] font-bold">
+              <span className="px-1.5 py-0.2 bg-[#F5F1EF] text-[#8D4429] rounded-full text-[10px] font-bold border border-[#AC9B95]/40">
                 {payoutsList.length}
               </span>
             )}
@@ -199,8 +199,8 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             onClick={() => setActiveTab('rates')}
             className={`pb-2.5 px-3 text-xs sm:text-sm font-bold border-b-2 flex items-center gap-1.5 transition-colors ${
               activeTab === 'rates'
-                ? 'border-[#2D6994] text-[#2D6994]'
-                : 'border-transparent text-[#697A88] hover:text-[#2C3842]'
+                ? 'border-[#8D4429] text-[#8D4429]'
+                : 'border-transparent text-[#8C776D] hover:text-[#3A2923]'
             }`}
           >
             <Calculator className="w-4 h-4" />
@@ -213,23 +213,23 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
           {activeTab === 'payouts' ? (
             <div className="space-y-4">
               {/* Form to enter a new settlement payout */}
-              <form onSubmit={handleAddPayout} className="bg-[#F8FAFC] p-3.5 sm:p-4 rounded-xl border border-slate-200 space-y-3">
-                <div className="text-xs font-bold text-[#2C3842] flex items-center justify-between">
+              <form onSubmit={handleAddPayout} className="bg-[#FAF7F5] p-3.5 sm:p-4 rounded-xl border border-[#AC9B95]/30 space-y-3">
+                <div className="text-xs font-bold text-[#3A2923] flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
-                    <Plus className="w-4 h-4 text-[#2D6994]" /> 手动录入已结算明细
+                    <Plus className="w-4 h-4 text-[#8D4429]" /> 手动录入已结算明细
                   </span>
-                  <span className="text-[11px] text-[#697A88] font-normal">多设备云端自动同步</span>
+                  <span className="text-[11px] text-[#8C776D] font-normal">多设备云端自动同步</span>
                 </div>
 
                 {formError && (
-                  <div className="text-xs text-[#D87048] bg-[#FAECE6] p-2 rounded-lg border border-[#F5B8A9]">
+                  <div className="text-xs text-[#8D4429] bg-[#FDF3ED] p-2 rounded-lg border border-[#E8C5B0]">
                     {formError}
                   </div>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-[#2C3842] mb-1 flex items-center justify-between">
+                    <label className="block text-xs font-semibold text-[#3A2923] mb-1 flex items-center justify-between">
                       <span>结算月份 *</span>
                       <div className="flex gap-1">
                         <button
@@ -238,7 +238,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                             const d = new Date();
                             setMonthInput(`${d.getFullYear()}年${d.getMonth() + 1}月`);
                           }}
-                          className="text-[10px] text-[#2D6994] hover:underline"
+                          className="text-[10px] text-[#8D4429] hover:underline"
                         >
                           当月
                         </button>
@@ -250,7 +250,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                             d.setMonth(d.getMonth() - 1);
                             setMonthInput(`${d.getFullYear()}年${d.getMonth() + 1}月`);
                           }}
-                          className="text-[10px] text-[#2D6994] hover:underline"
+                          className="text-[10px] text-[#8D4429] hover:underline"
                         >
                           上月
                         </button>
@@ -261,13 +261,13 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                       value={monthInput}
                       onChange={(e) => setMonthInput(e.target.value)}
                       placeholder="如：2026年2月"
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-[#2C3842] focus:ring-2 focus:ring-[#2D6994]"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-medium text-[#3A2923] focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429]"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-[#2C3842] mb-1">
+                    <label className="block text-xs font-semibold text-[#3A2923] mb-1">
                       已结算金额 (¥) *
                     </label>
                     <input 
@@ -277,14 +277,14 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                       value={amountInput}
                       onChange={(e) => setAmountInput(e.target.value)}
                       placeholder="如：50"
-                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-bold text-[#2C3842] focus:ring-2 focus:ring-[#2D6994]"
+                      className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs font-bold text-[#3A2923] focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429]"
                       required
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-[#697A88] mb-1">
+                  <label className="block text-xs font-medium text-[#8C776D] mb-1">
                     备注说明 (选填，如转账流水、经手人)
                   </label>
                   <div className="flex gap-2">
@@ -293,11 +293,11 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                       value={remarkInput}
                       onChange={(e) => setRemarkInput(e.target.value)}
                       placeholder="如：微信转账 / 展会现场结算"
-                      className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs text-[#2C3842] focus:ring-2 focus:ring-[#2D6994]"
+                      className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-xs text-[#3A2923] focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429]"
                     />
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-[#2D6994] hover:bg-[#235375] text-white rounded-lg text-xs font-bold transition-colors shadow-xs flex items-center gap-1 flex-shrink-0"
+                      className="px-4 py-2 bg-[#8D4429] hover:bg-[#723720] text-white rounded-lg text-xs font-bold transition-colors shadow-xs flex items-center gap-1 flex-shrink-0"
                     >
                       <Plus className="w-3.5 h-3.5" /> 确认录入
                     </button>
@@ -307,15 +307,15 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
 
               {/* List of Settlement Payouts */}
               <div className="space-y-2">
-                <div className="flex justify-between items-center text-xs font-bold text-[#2C3842]">
+                <div className="flex justify-between items-center text-xs font-bold text-[#3A2923]">
                   <span>已结算历史明细 ({payoutsList.length} 笔)</span>
-                  <span className="text-[#697A88] font-medium">累计已结: <b className="text-[#2D6994]">¥{stats.totalPaidAmount.toFixed(1)}</b></span>
+                  <span className="text-[#8C776D] font-medium">累计已结: <b className="text-[#8D4429]">¥{stats.totalPaidAmount.toFixed(1)}</b></span>
                 </div>
 
                 {payoutsList.length === 0 ? (
-                  <div className="text-center py-8 bg-[#F8FAFC] rounded-xl border border-dashed border-slate-200 text-xs text-[#697A88]">
-                    <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-1.5" />
-                    <p className="font-semibold text-[#2C3842]">暂无手动已结算记录</p>
+                  <div className="text-center py-8 bg-[#FAF7F5] rounded-xl border border-dashed border-[#AC9B95]/40 text-xs text-[#8C776D]">
+                    <Calendar className="w-8 h-8 text-[#AC9B95] mx-auto mb-1.5" />
+                    <p className="font-semibold text-[#3A2923]">暂无手动已结算记录</p>
                     <p className="mt-1">在上方输入月份与金额（如：2026年2月 已结算 50元），面板将自动核销并计算待结算余额。</p>
                   </div>
                 ) : (
@@ -323,28 +323,28 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                     {payoutsList.map((payout) => (
                       <div 
                         key={payout.id}
-                        className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-colors text-xs"
+                        className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-[#AC9B95]/30 hover:border-[#AC9B95] transition-colors text-xs"
                       >
                         <div className="flex items-center gap-2.5 min-w-0">
-                          <span className="px-2 py-0.5 rounded bg-[#EAF3F8] text-[#2D6994] font-bold border border-[#72B8D6]/40 text-[11px] flex-shrink-0">
+                          <span className="px-2 py-0.5 rounded bg-[#F5F1EF] text-[#5F3E32] font-bold border border-[#AC9B95]/50 text-[11px] flex-shrink-0">
                             {payout.month}
                           </span>
                           <div className="truncate">
-                            <span className="font-bold text-[#2C3842] text-sm mr-2">¥{Number(payout.amount).toFixed(2)}</span>
+                            <span className="font-bold text-[#3A2923] text-sm mr-2">¥{Number(payout.amount).toFixed(2)}</span>
                             {payout.remark && (
-                              <span className="text-[#697A88] text-[11px] bg-slate-50 px-1.5 py-0.5 rounded">
+                              <span className="text-[#8C776D] text-[11px] bg-stone-100 px-1.5 py-0.5 rounded">
                                 {payout.remark}
                               </span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-[10px] text-[#697A88] hidden sm:inline">
+                          <span className="text-[10px] text-[#8C776D] hidden sm:inline">
                             {new Date(payout.createdAt || Date.now()).toLocaleDateString('zh-CN')}
                           </span>
                           <button
                             onClick={() => handleDeletePayout(payout.id, payout.month, payout.amount)}
-                            className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                            className="p-1 text-stone-400 hover:text-[#8D4429] hover:bg-[#FDF3ED] rounded transition-colors"
                             title="删除此笔记录"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -358,16 +358,16 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="bg-[#EAF3F8] p-3.5 rounded-xl border border-[#72B8D6]/30 text-xs text-[#2D6994] leading-relaxed">
+              <div className="bg-[#F5F1EF] p-3.5 rounded-xl border border-[#AC9B95]/30 text-xs text-[#5F3E32] leading-relaxed">
                 <span className="font-semibold block mb-1">当前货架结算公式：</span>
                 结算金额 = 货架 HB3 销售额 × <b>{((settlementSettings.hb3Rate || 0.92) * 100).toFixed(0)}%</b> + 货架 HC3 销售额 × <b>{((settlementSettings.hc3Rate || 0.8) * 100).toFixed(0)}%</b>
               </div>
 
               <div className="space-y-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-[#2C3842] mb-1 flex justify-between items-center">
+                  <label className="block text-xs font-semibold text-[#3A2923] mb-1 flex justify-between items-center">
                     <span>HB3 货架结算比例 (%)</span>
-                    <span className="text-[11px] text-[#2D6994] font-medium">默认 92% (乘数 0.92)</span>
+                    <span className="text-[11px] text-[#8D4429] font-medium">默认 92% (乘数 0.92)</span>
                   </label>
                   <div className="relative">
                     <input 
@@ -377,7 +377,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                       max="100"
                       value={hb3Input}
                       onChange={(e) => setHb3Input(e.target.value)}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#2D6994] font-bold text-[#2C3842] text-sm"
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] font-bold text-[#3A2923] text-sm"
                       placeholder="92"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
@@ -385,9 +385,9 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#2C3842] mb-1 flex justify-between items-center">
+                  <label className="block text-xs font-semibold text-[#3A2923] mb-1 flex justify-between items-center">
                     <span>HC3 货架结算比例 (%)</span>
-                    <span className="text-[11px] text-[#2D6994] font-medium">默认 80% (乘数 0.80)</span>
+                    <span className="text-[11px] text-[#8D4429] font-medium">默认 80% (乘数 0.80)</span>
                   </label>
                   <div className="relative">
                     <input 
@@ -397,7 +397,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                       max="100"
                       value={hc3Input}
                       onChange={(e) => setHc3Input(e.target.value)}
-                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#2D6994] font-bold text-[#2C3842] text-sm"
+                      className="w-full px-3.5 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] font-bold text-[#3A2923] text-sm"
                       placeholder="80"
                     />
                     <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
@@ -405,22 +405,22 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
                 </div>
               </div>
 
-              <div className="border-t border-slate-200/80 pt-3 space-y-1.5 text-xs text-[#697A88]">
+              <div className="border-t border-[#AC9B95]/30 pt-3 space-y-1.5 text-xs text-[#8C776D]">
                 <div className="flex justify-between">
                   <span>HB3 当前总销售额：</span>
-                  <span className="font-semibold text-[#2C3842]">¥{stats.hb3Sales.toFixed(2)}</span>
+                  <span className="font-semibold text-[#3A2923]">¥{stats.hb3Sales.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>HC3 当前总销售额：</span>
-                  <span className="font-semibold text-[#2C3842]">¥{stats.hc3Sales.toFixed(2)}</span>
+                  <span className="font-semibold text-[#3A2923]">¥{stats.hc3Sales.toFixed(2)}</span>
                 </div>
                 {stats.otherSales > 0 && (
-                  <div className="flex justify-between text-[#D87048]">
+                  <div className="flex justify-between text-[#BB754B]">
                     <span>其他/未设置货架销售额 (不参与结算)：</span>
                     <span className="font-semibold">¥{stats.otherSales.toFixed(2)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm font-bold text-[#2D6994] pt-1.5 border-t border-slate-200">
+                <div className="flex justify-between text-sm font-bold text-[#8D4429] pt-1.5 border-t border-[#AC9B95]/30">
                   <span>预计总结算额：</span>
                   <span>¥{stats.settlementAmount.toFixed(2)}</span>
                 </div>
@@ -430,24 +430,24 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
         </div>
 
         {/* Footer Controls */}
-        <div className="p-3.5 sm:p-4 bg-slate-50 border-t flex justify-between items-center gap-2">
+        <div className="p-3.5 sm:p-4 bg-[#FAF7F5] border-t border-[#AC9B95]/30 flex justify-between items-center gap-2">
           {activeTab === 'rates' ? (
             <button
               type="button"
               onClick={handleResetRates}
-              className="px-3 py-1.5 text-xs font-medium text-[#697A88] hover:text-[#2C3842] hover:bg-slate-200/60 rounded-lg transition-colors"
+              className="px-3 py-1.5 text-xs font-medium text-[#8C776D] hover:text-[#3A2923] hover:bg-stone-200/60 rounded-lg transition-colors"
             >
               恢复默认 (92% / 80%)
             </button>
           ) : (
-            <span className="text-[11px] text-[#697A88]">录入后多设备实时同步</span>
+            <span className="text-[11px] text-[#8C776D]">录入后多设备实时同步</span>
           )}
           
           <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs sm:text-sm font-medium text-[#2C3842] bg-white border border-gray-300 rounded-lg hover:bg-slate-50"
+              className="px-4 py-2 text-xs sm:text-sm font-medium text-[#3A2923] bg-white border border-[#AC9B95]/40 rounded-lg hover:bg-stone-50"
             >
               关闭
             </button>
@@ -455,7 +455,7 @@ export const SettlementModal: React.FC<SettlementModalProps> = ({
               <button
                 type="button"
                 onClick={handleSaveRates}
-                className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#2D6994] rounded-lg hover:bg-[#235375] shadow-sm"
+                className="px-4 py-2 text-xs sm:text-sm font-semibold text-white bg-[#8D4429] rounded-lg hover:bg-[#723720] shadow-sm transition-colors"
               >
                 保存比例
               </button>

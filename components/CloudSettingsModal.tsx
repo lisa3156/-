@@ -76,10 +76,6 @@ export const CloudSettingsModal: React.FC<CloudSettingsModalProps> = ({
   };
 
   const handleForceUploadLocal = async () => {
-    if (!window.confirm(`确定要将当前本地的 ${items.length} 项商品与结算比例上传到 Supabase 吗？\n注意：如果云端已有同 ID 商品将被更新。`)) {
-      return;
-    }
-
     setIsSyncingLocal(true);
     try {
       if (items.length > 0) {
@@ -91,7 +87,7 @@ export const CloudSettingsModal: React.FC<CloudSettingsModalProps> = ({
       await onRefreshFromCloud();
     } catch (err: any) {
       setIsSyncingLocal(false);
-      alert(`上传失败: ${err.message || '请检查网络'}`);
+      onToast(`上传失败: ${err.message || '请检查网络'}`);
     }
   };
 
@@ -147,29 +143,29 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
-        <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/70">
+        <div className="flex justify-between items-center p-4 border-b border-[#AC9B95]/30 bg-[#FAF7F5]">
           <div className="flex items-center gap-2">
             <div className={`p-2 rounded-xl ${isCloudConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
               {isCloudConnected ? <Cloud className="w-5 h-5" /> : <CloudOff className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#2C3842]">Supabase 云端多设备同步</h3>
-              <p className="text-xs text-[#697A88]">手机、电脑、平板随时随地共享实时库存</p>
+              <h3 className="text-base font-bold text-[#3A2923]">Supabase 云端多设备同步</h3>
+              <p className="text-xs text-[#8C776D]">手机、电脑、平板随时随地共享实时库存</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-[#2C3842] rounded-lg">
+          <button onClick={onClose} className="p-1.5 text-stone-400 hover:text-[#3A2923] rounded-lg">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-slate-100 text-xs font-semibold">
+        <div className="flex border-b border-[#AC9B95]/30 text-xs font-semibold bg-[#FAF7F5]">
           <button 
             onClick={() => setActiveTab('status')}
             className={`flex-1 py-3 transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === 'status' 
-                ? 'text-[#2D6994] border-b-2 border-[#2D6994] bg-[#EAF3F8]/30 font-bold' 
-                : 'text-[#697A88] hover:bg-slate-50'
+                ? 'text-[#8D4429] border-b-2 border-[#8D4429] bg-[#F5F1EF] font-bold' 
+                : 'text-[#8C776D] hover:bg-[#F5F1EF]/50'
             }`}
           >
             <Database className="w-3.5 h-3.5" />
@@ -179,8 +175,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
             onClick={() => setActiveTab('config')}
             className={`flex-1 py-3 transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === 'config' 
-                ? 'text-[#2D6994] border-b-2 border-[#2D6994] bg-[#EAF3F8]/30 font-bold' 
-                : 'text-[#697A88] hover:bg-slate-50'
+                ? 'text-[#8D4429] border-b-2 border-[#8D4429] bg-[#F5F1EF] font-bold' 
+                : 'text-[#8C776D] hover:bg-[#F5F1EF]/50'
             }`}
           >
             <Cloud className="w-3.5 h-3.5" />
@@ -190,8 +186,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
             onClick={() => setActiveTab('sql')}
             className={`flex-1 py-3 transition-colors flex items-center justify-center gap-1.5 ${
               activeTab === 'sql' 
-                ? 'text-[#2D6994] border-b-2 border-[#2D6994] bg-[#EAF3F8]/30 font-bold' 
-                : 'text-[#697A88] hover:bg-slate-50'
+                ? 'text-[#8D4429] border-b-2 border-[#8D4429] bg-[#F5F1EF] font-bold' 
+                : 'text-[#8C776D] hover:bg-[#F5F1EF]/50'
             }`}
           >
             <Terminal className="w-3.5 h-3.5" />
@@ -228,18 +224,18 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
               </div>
 
               {/* Data Status Summary */}
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-[#2C3842] space-y-2">
+              <div className="bg-[#FAF7F5] p-4 rounded-xl border border-[#AC9B95]/30 text-xs text-[#3A2923] space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-[#697A88]">当前加载商品数量：</span>
-                  <span className="font-bold text-sm text-[#2D6994]">{items.length} 件</span>
+                  <span className="text-[#8C776D]">当前加载商品数量：</span>
+                  <span className="font-bold text-sm text-[#8D4429]">{items.length} 件</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-[#697A88]">当前货架结算比例：</span>
+                  <span className="text-[#8C776D]">当前货架结算比例：</span>
                   <span className="font-semibold">HB3: {(settlementSettings.hb3Rate * 100).toFixed(0)}% | HC3: {(settlementSettings.hc3Rate * 100).toFixed(0)}%</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-[#697A88]">当前 Supabase 项目地址：</span>
-                  <span className="font-mono text-[11px] text-[#697A88] truncate max-w-[240px]" title={currentConfig.url}>
+                  <span className="text-[#8C776D]">当前 Supabase 项目地址：</span>
+                  <span className="font-mono text-[11px] text-[#8C776D] truncate max-w-[240px]" title={currentConfig.url}>
                     {currentConfig.url || '未设置'}
                   </span>
                 </div>
@@ -253,9 +249,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
                     await onRefreshFromCloud();
                     onToast('已从云端拉取最新数据！');
                   }}
-                  className="flex items-center justify-center p-3 border border-slate-200 rounded-xl hover:bg-slate-50 text-xs font-semibold text-[#2C3842] transition-colors"
+                  className="flex items-center justify-center p-3 border border-[#AC9B95]/30 rounded-xl hover:bg-[#F5F1EF] text-xs font-semibold text-[#3A2923] transition-colors"
                 >
-                  <RefreshCw className="w-4 h-4 mr-2 text-[#2D6994]" />
+                  <RefreshCw className="w-4 h-4 mr-2 text-[#8D4429]" />
                   从云端重新拉取
                 </button>
 
@@ -263,7 +259,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
                   type="button"
                   onClick={handleForceUploadLocal}
                   disabled={isSyncingLocal}
-                  className="flex items-center justify-center p-3 bg-[#2D6994] text-white rounded-xl hover:bg-[#235375] text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+                  className="flex items-center justify-center p-3 bg-[#8D4429] text-white rounded-xl hover:bg-[#723720] text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
                 >
                   <UploadCloud className="w-4 h-4 mr-2" />
                   {isSyncingLocal ? '正在上传...' : '强制将本地上传云端'}
@@ -271,8 +267,8 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
               </div>
 
               {/* Security Boundary Explanation */}
-              <div className="bg-[#EAF3F8] p-3.5 rounded-xl border border-[#72B8D6]/30 text-xs text-[#2D6994] leading-relaxed flex items-start gap-2.5">
-                <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#2D6994]" />
+              <div className="bg-[#F5F1EF] p-3.5 rounded-xl border border-[#AC9B95]/30 text-xs text-[#5F3E32] leading-relaxed flex items-start gap-2.5">
+                <ShieldCheck className="w-4 h-4 mt-0.5 flex-shrink-0 text-[#8D4429]" />
                 <div>
                   <span className="font-bold block mb-0.5">私人管理站点安全说明：</span>
                   当前采用 Supabase 匿名公开 Key (anon) 方案，无需登录即可实现手机、平板、电脑随时打开即同步，零使用门槛。请勿将此私密网站地址公开分享给无关人员即可保持私密。
@@ -283,13 +279,13 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
 
           {activeTab === 'config' && (
             <div className="space-y-4">
-              <div className="text-xs text-[#697A88] leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
+              <div className="text-xs text-[#8C776D] leading-relaxed bg-[#FAF7F5] p-3 rounded-xl border border-[#AC9B95]/30">
                 <b>部署提示 (Netlify)：</b>
                 推荐在 Netlify 控制台 <b>Site configuration &gt; Environment variables</b> 中添加以下两个变量，部署后将永久自动生效：
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#2C3842] mb-1">
+                <label className="block text-xs font-bold text-[#3A2923] mb-1">
                   VITE_SUPABASE_URL
                 </label>
                 <input 
@@ -297,12 +293,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
                   value={supabaseUrl}
                   onChange={(e) => setSupabaseUrl(e.target.value)}
                   placeholder="https://your-project.supabase.co"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#2D6994] text-[#2C3842]"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-[#3A2923]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-[#2C3842] mb-1">
+                <label className="block text-xs font-bold text-[#3A2923] mb-1">
                   VITE_SUPABASE_ANON_KEY
                 </label>
                 <input 
@@ -310,7 +306,7 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
                   value={supabaseAnonKey}
                   onChange={(e) => setSupabaseAnonKey(e.target.value)}
                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#2D6994] text-[#2C3842]"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-[#3A2923]"
                 />
               </div>
 
@@ -320,9 +316,9 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
                     ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' 
                     : testingStatus === 'failed' 
                       ? 'bg-red-50 text-red-800 border border-red-200' 
-                      : 'bg-blue-50 text-blue-800 border border-blue-200'
+                      : 'bg-[#FDF3ED] text-[#BB754B] border border-[#E8C5B0]'
                 }`}>
-                  {testingStatus === 'testing' && <RefreshCw className="w-4 h-4 animate-spin" />}
+                  {testingStatus === 'testing' && <RefreshCw className="w-4 h-4 animate-spin text-[#8D4429]" />}
                   {testingStatus === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                   {testingStatus === 'failed' && <AlertCircle className="w-4 h-4 text-red-600" />}
                   <span>{statusMessage}</span>
@@ -334,14 +330,14 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
                   type="button"
                   onClick={handleTestConnection}
                   disabled={!supabaseUrl || !supabaseAnonKey}
-                  className="flex-1 py-2.5 border border-[#2D6994] text-[#2D6994] hover:bg-[#EAF3F8] rounded-xl text-xs font-semibold transition-colors disabled:opacity-40"
+                  className="flex-1 py-2.5 border border-[#8D4429] text-[#8D4429] hover:bg-[#F5F1EF] rounded-xl text-xs font-semibold transition-colors disabled:opacity-40"
                 >
                   测试连接
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveConfig}
-                  className="flex-1 py-2.5 bg-[#2D6994] text-white hover:bg-[#235375] rounded-xl text-xs font-semibold shadow-sm transition-colors"
+                  className="flex-1 py-2.5 bg-[#8D4429] text-white hover:bg-[#723720] rounded-xl text-xs font-semibold shadow-sm transition-colors"
                 >
                   保存设置并连接
                 </button>
@@ -352,13 +348,13 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
           {activeTab === 'sql' && (
             <div className="space-y-3">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-[#697A88]">
+                <span className="text-xs text-[#8C776D]">
                   请在 Supabase 控制台的 <b>SQL Editor</b> 中粘贴并点击 <b>Run</b>：
                 </span>
                 <button
                   type="button"
                   onClick={copySql}
-                  className="px-2.5 py-1 bg-[#2D6994] text-white rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-[#235375]"
+                  className="px-2.5 py-1 bg-[#8D4429] text-white rounded-lg text-xs font-semibold flex items-center gap-1 hover:bg-[#723720]"
                 >
                   <Copy className="w-3.5 h-3.5" />
                   一键复制 SQL
@@ -374,11 +370,11 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.settlement_settings;`;
         </div>
 
         {/* Modal Footer */}
-        <div className="p-3 bg-slate-50 border-t flex justify-end">
+        <div className="p-3 bg-[#FAF7F5] border-t border-[#AC9B95]/30 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-[#2C3842] bg-white border border-slate-200 rounded-lg hover:bg-slate-100"
+            className="px-4 py-2 text-xs font-semibold text-[#3A2923] bg-white border border-[#AC9B95]/40 rounded-lg hover:bg-stone-50"
           >
             完成并关闭
           </button>

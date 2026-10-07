@@ -1119,11 +1119,11 @@ export const App: React.FC = () => {
 
         pushUndo(`导入 Excel 数据 (新增 ${addedCount} 条, 更新 ${updatedCount} 条)`, items);
         setItems(validItems);
-        alert(`导入完成！新增: ${addedCount} 条，更新: ${updatedCount} 条。${isSupabaseConfigured() ? '已成功同步至云端。' : ''}`);
+        showToast(`导入完成！新增: ${addedCount} 条，更新: ${updatedCount} 条。${isSupabaseConfigured() ? '已成功同步至云端。' : ''}`, false);
 
       } catch (error) {
         console.error("Import error:", error);
-        alert("导入失败，请检查文件格式是否正确。");
+        showToast("导入失败，请检查文件格式是否正确。");
       }
     };
 
@@ -1148,17 +1148,17 @@ export const App: React.FC = () => {
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSalesDetailModalOpen(false)} />
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl relative z-10 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="text-lg font-bold text-[#2C3842] flex items-center gap-2">
-              <Receipt className="w-5 h-5 text-[#2D6994]" />
+          <div className="flex justify-between items-center p-4 border-b border-[#AC9B95]/30 bg-[#FAF7F5]">
+            <h3 className="text-lg font-bold text-[#3A2923] flex items-center gap-2">
+              <Receipt className="w-5 h-5 text-[#8D4429]" />
               已售商品明细与货架结算 ({soldItems.length} 款)
             </h3>
-            <button onClick={() => setIsSalesDetailModalOpen(false)} className="text-gray-400 hover:text-[#2C3842] p-1 rounded-lg">
+            <button onClick={() => setIsSalesDetailModalOpen(false)} className="text-stone-400 hover:text-[#3A2923] p-1 rounded-lg">
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="p-0 overflow-auto flex-1 bg-slate-50/60">
+          <div className="p-0 overflow-auto flex-1 bg-[#FAF7F5]/50">
             {/* Mobile View */}
             <div className="md:hidden">
               {soldItems.map(item => {
@@ -1168,26 +1168,26 @@ export const App: React.FC = () => {
                 const settlement = itemRevenue * rate;
 
                 return (
-                  <div key={item.id} className="bg-white p-4 border-b border-slate-100 last:border-0">
+                  <div key={item.id} className="bg-white p-4 border-b border-[#AC9B95]/20 last:border-0">
                     <div className="flex justify-between items-start mb-1">
-                      <div className="font-medium text-[#2C3842] flex items-center gap-1.5">
+                      <div className="font-medium text-[#3A2923] flex items-center gap-1.5">
                         <span className="font-bold">{item.style || '无款式'}</span>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
-                          shelf === 'HB3' ? 'bg-amber-100 text-amber-800' : (shelf === 'HC3' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-700')
+                          shelf === 'HB3' ? 'bg-[#F5F1EF] text-[#5F3E32] border border-[#AC9B95]/40' : (shelf === 'HC3' ? 'bg-[#FDF3ED] text-[#BB754B] border border-[#E8C5B0]' : 'bg-stone-100 text-[#8C776D]')
                         }`}>
                           {item.shelfLocation || '未设货架'}
                         </span>
                       </div>
-                      <div className="text-[#2D6994] font-bold">¥{itemRevenue.toLocaleString()}</div>
+                      <div className="text-[#8D4429] font-bold">¥{itemRevenue.toLocaleString()}</div>
                     </div>
-                    <div className="text-xs text-[#697A88] mb-2">
+                    <div className="text-xs text-[#8C776D] mb-2">
                       {item.series} | {item.character} | {item.type}
                     </div>
-                    <div className="flex justify-between text-xs text-[#697A88] bg-slate-50 p-2 rounded-lg">
+                    <div className="flex justify-between text-xs text-[#8C776D] bg-[#FAF7F5] p-2 rounded-lg border border-[#AC9B95]/20">
                       <span>单价: ¥{item.price}</span>
-                      <span>已出: <b className="text-[#2C3842]">{item.sold}</b></span>
+                      <span>已出: <b className="text-[#3A2923]">{item.sold}</b></span>
                       {rate > 0 && (
-                        <span className="text-[#2D6994] font-medium">
+                        <span className="text-[#8D4429] font-medium">
                           结算 ({Math.round(rate * 100)}%): <b>¥{settlement.toFixed(2)}</b>
                         </span>
                       )}
@@ -1196,24 +1196,24 @@ export const App: React.FC = () => {
                 );
               })}
               {soldItems.length === 0 && (
-                <div className="text-center py-10 text-[#697A88]">暂无销售记录</div>
+                <div className="text-center py-10 text-[#8C776D]">暂无销售记录</div>
               )}
             </div>
 
             {/* Desktop View */}
             <div className="hidden md:block">
-              <table className="min-w-full divide-y divide-slate-200">
-                <thead className="bg-slate-50 sticky top-0">
+              <table className="min-w-full divide-y divide-[#AC9B95]/20">
+                <thead className="bg-[#FAF7F5] sticky top-0">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#697A88] uppercase tracking-wider">商品信息</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#697A88] uppercase tracking-wider">货架</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#697A88] uppercase tracking-wider">单价</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#697A88] uppercase tracking-wider">已出数量</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-[#697A88] uppercase tracking-wider">销售总额</th>
-                    <th className="px-6 py-3 text-right text-xs font-semibold text-[#2D6994] uppercase tracking-wider">货架结算贡献</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#8C776D] uppercase tracking-wider">商品信息</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#8C776D] uppercase tracking-wider">货架</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#8C776D] uppercase tracking-wider">单价</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-[#8C776D] uppercase tracking-wider">已出数量</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-[#8C776D] uppercase tracking-wider">销售总额</th>
+                    <th className="px-6 py-3 text-right text-xs font-semibold text-[#8D4429] uppercase tracking-wider">货架结算贡献</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-slate-100">
+                <tbody className="bg-white divide-y divide-[#AC9B95]/15">
                   {soldItems.map((item) => {
                     const itemRevenue = item.sold * item.price;
                     const shelf = (item.shelfLocation || '').toUpperCase();
@@ -1221,32 +1221,32 @@ export const App: React.FC = () => {
                     const settlement = itemRevenue * rate;
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50/70">
+                      <tr key={item.id} className="hover:bg-[#FAF7F5]/80">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-semibold text-[#2C3842]">{item.style || '默认款式'}</div>
-                          <div className="text-xs text-[#697A88]">{item.series} - {item.character} ({item.type})</div>
+                          <div className="text-sm font-semibold text-[#3A2923]">{item.style || '默认款式'}</div>
+                          <div className="text-xs text-[#8C776D]">{item.series} - {item.character} ({item.type})</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                           <span className={`px-2 py-0.5 rounded text-xs font-bold ${
-                            shelf === 'HB3' ? 'bg-amber-100 text-amber-800' : (shelf === 'HC3' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600')
+                            shelf === 'HB3' ? 'bg-[#F5F1EF] text-[#5F3E32] border border-[#AC9B95]/40' : (shelf === 'HC3' ? 'bg-[#FDF3ED] text-[#BB754B] border border-[#E8C5B0]' : 'bg-stone-100 text-[#8C776D]')
                           }`}>
                             {item.shelfLocation || '无'}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#697A88]">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#8C776D]">
                           ¥{item.price.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#2C3842] font-semibold">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3A2923] font-semibold">
                           {item.sold}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#2C3842] font-bold text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#3A2923] font-bold text-right">
                           ¥{itemRevenue.toFixed(2)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#2D6994] font-bold text-right">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#8D4429] font-bold text-right">
                           {rate > 0 ? (
-                            <span>¥{settlement.toFixed(2)} <span className="text-[11px] font-normal text-[#697A88]">({Math.round(rate * 100)}%)</span></span>
+                            <span>¥{settlement.toFixed(2)} <span className="text-[11px] font-normal text-[#8C776D]">({Math.round(rate * 100)}%)</span></span>
                           ) : (
-                            <span className="text-gray-400 text-xs font-normal">未参与</span>
+                            <span className="text-stone-400 text-xs font-normal">未参与</span>
                           )}
                         </td>
                       </tr>
@@ -1254,7 +1254,7 @@ export const App: React.FC = () => {
                   })}
                   {soldItems.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-[#697A88]">当前筛选条件下暂无销售记录</td>
+                      <td colSpan={6} className="px-6 py-10 text-center text-[#8C776D]">当前筛选条件下暂无销售记录</td>
                     </tr>
                   )}
                 </tbody>
@@ -1262,11 +1262,11 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white border-t border-slate-100 p-4 flex flex-wrap justify-between items-center shadow-lg relative z-20 gap-3">
-            <div className="text-sm text-[#697A88]">
-              共售出 <span className="font-bold text-[#2C3842]">{totalSold}</span> 件商品 | 销售总额: <span className="font-bold text-[#2C3842]">¥{totalRevenue.toLocaleString()}</span>
+          <div className="bg-white border-t border-[#AC9B95]/30 p-4 flex flex-wrap justify-between items-center shadow-lg relative z-20 gap-3">
+            <div className="text-sm text-[#8C776D]">
+              共售出 <span className="font-bold text-[#3A2923]">{totalSold}</span> 件商品 | 销售总额: <span className="font-bold text-[#3A2923]">¥{totalRevenue.toLocaleString()}</span>
             </div>
-            <div className="text-base font-bold text-[#2D6994] flex items-center gap-2">
+            <div className="text-base font-bold text-[#8D4429] flex items-center gap-2">
               <span>预计结算金额 (HB3+HC3):</span>
               <span className="text-lg">¥{stats.settlementAmount.toFixed(2)}</span>
             </div>
@@ -1285,7 +1285,7 @@ export const App: React.FC = () => {
 
     const handleCopy = () => {
       navigator.clipboard.writeText(jsonString).then(() => {
-        alert('数据已复制到剪贴板！');
+        showToast('数据已复制到剪贴板！', false);
       });
     };
 
@@ -1317,7 +1317,6 @@ export const App: React.FC = () => {
 
     const tryRestore = async (jsonContent: string) => {
       if (!jsonContent) return;
-      if (!window.confirm('警告：此操作将覆盖当前所有数据！确定要恢复吗？')) return;
       
       try {
         const parsed = JSON.parse(jsonContent);
@@ -1340,7 +1339,7 @@ export const App: React.FC = () => {
             await syncFullInventoryCloud(sanitizedData);
           } catch (err: any) {
             setIsSyncing(false);
-            alert(`JSON 备份数据同步到云端失败：${err.message || '请检查网络连接'}`);
+            showToast(`JSON 备份数据同步到云端失败：${err.message || '请检查网络连接'}`);
             return;
           }
           setIsSyncing(false);
@@ -1348,10 +1347,10 @@ export const App: React.FC = () => {
 
         pushUndo(`从 JSON 备份恢复数据 (${sanitizedData.length} 条)`, items);
         setItems(sanitizedData);
-        alert(`成功恢复 ${sanitizedData.length} 条数据！${isSupabaseConfigured() ? '已同步至云端。' : ''}`);
+        showToast(`成功恢复 ${sanitizedData.length} 条数据！${isSupabaseConfigured() ? '已同步至云端。' : ''}`, false);
         setIsBackupModalOpen(false);
       } catch (e) {
-        alert('数据格式错误，请确保导入的是正确的 JSON 备份文件。');
+        showToast('数据格式错误，请确保导入的是正确的 JSON 备份文件。');
       }
     };
 
@@ -1359,25 +1358,25 @@ export const App: React.FC = () => {
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsBackupModalOpen(false)} />
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg relative z-10 flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="text-lg font-bold text-[#2C3842] flex items-center gap-2">
-              <Database className="w-5 h-5 text-[#2D6994]" />
+          <div className="flex justify-between items-center p-4 border-b border-[#AC9B95]/30 bg-[#FAF7F5]">
+            <h3 className="text-lg font-bold text-[#3A2923] flex items-center gap-2">
+              <Database className="w-5 h-5 text-[#8D4429]" />
               数据备份与迁移
             </h3>
-            <button onClick={() => setIsBackupModalOpen(false)} className="text-gray-400 hover:text-[#2C3842]">
+            <button onClick={() => setIsBackupModalOpen(false)} className="text-stone-400 hover:text-[#3A2923]">
               <X className="w-5 h-5" />
             </button>
           </div>
           
-          <div className="flex border-b border-slate-100">
+          <div className="flex border-b border-[#AC9B95]/30 bg-[#FAF7F5]">
             <button 
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${mode === 'export' ? 'text-[#2D6994] border-b-2 border-[#2D6994] bg-[#EAF3F8]/30' : 'text-[#697A88] hover:bg-slate-50'}`}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${mode === 'export' ? 'text-[#8D4429] border-b-2 border-[#8D4429] bg-[#F5F1EF]' : 'text-[#8C776D] hover:bg-stone-100'}`}
               onClick={() => setMode('export')}
             >
               导出 (备份)
             </button>
             <button 
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${mode === 'import' ? 'text-[#2D6994] border-b-2 border-[#2D6994] bg-[#EAF3F8]/30' : 'text-[#697A88] hover:bg-slate-50'}`}
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${mode === 'import' ? 'text-[#8D4429] border-b-2 border-[#8D4429] bg-[#F5F1EF]' : 'text-[#8C776D] hover:bg-stone-100'}`}
               onClick={() => setMode('import')}
             >
               导入 (恢复)
@@ -1387,34 +1386,34 @@ export const App: React.FC = () => {
           <div className="p-5 flex-1 overflow-auto">
             {mode === 'export' ? (
               <div className="space-y-5">
-                <div className="bg-[#EAF3F8] p-4 rounded-xl border border-[#72B8D6]/30">
-                  <h4 className="font-semibold text-[#2D6994] mb-1.5 flex items-center">
-                    <FileJson className="w-4 h-4 mr-2" /> 推荐：下载备份文件
+                <div className="bg-[#F5F1EF] p-4 rounded-xl border border-[#AC9B95]/30">
+                  <h4 className="font-semibold text-[#5F3E32] mb-1.5 flex items-center">
+                    <FileJson className="w-4 h-4 mr-2 text-[#8D4429]" /> 推荐：下载备份文件
                   </h4>
-                  <p className="text-xs text-[#2D6994]/80 mb-3">
+                  <p className="text-xs text-[#5F3E32]/80 mb-3">
                     将生成一个 .json 文件。在其他设备上使用“上传备份文件”即可恢复。
                   </p>
                   <button 
                     onClick={handleDownloadJSON}
-                    className="w-full py-2.5 bg-[#2D6994] text-white rounded-xl hover:bg-[#235375] font-semibold shadow-sm flex items-center justify-center text-sm transition-colors"
+                    className="w-full py-2.5 bg-[#8D4429] text-white rounded-xl hover:bg-[#723720] font-semibold shadow-sm flex items-center justify-center text-sm transition-colors"
                   >
                     <Download className="w-4 h-4 mr-2" /> 下载 JSON 文件
                   </button>
                 </div>
 
-                <div className="border-t border-slate-100 pt-4">
-                  <h4 className="font-medium text-[#2C3842] mb-2 text-sm flex items-center">
-                    <ClipboardCopy className="w-4 h-4 mr-2 text-[#697A88]" /> 备用：复制文本
+                <div className="border-t border-[#AC9B95]/30 pt-4">
+                  <h4 className="font-medium text-[#3A2923] mb-2 text-sm flex items-center">
+                    <ClipboardCopy className="w-4 h-4 mr-2 text-[#8C776D]" /> 备用：复制文本
                   </h4>
                   <textarea 
                     readOnly 
                     value={jsonString}
                     onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                    className="w-full h-24 p-2 border border-slate-200 rounded-xl text-[10px] font-mono bg-slate-50 focus:ring-2 focus:ring-[#2D6994] text-[#697A88]"
+                    className="w-full h-24 p-2 border border-[#AC9B95]/40 rounded-xl text-[10px] font-mono bg-[#FAF7F5] focus:ring-2 focus:ring-[#8D4429] text-[#8C776D]"
                   />
                   <button 
                     onClick={handleCopy}
-                    className="w-full mt-2 py-2 border border-[#2D6994] text-[#2D6994] rounded-xl hover:bg-[#EAF3F8] font-semibold text-xs transition-colors"
+                    className="w-full mt-2 py-2 border border-[#8D4429] text-[#8D4429] rounded-xl hover:bg-[#F5F1EF] font-semibold text-xs transition-colors"
                   >
                     复制文本到剪贴板
                   </button>
@@ -1430,35 +1429,35 @@ export const App: React.FC = () => {
                   onChange={handleJSONFileImport}
                 />
 
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                  <h4 className="font-semibold text-[#2C3842] mb-1.5 flex items-center">
-                    <FileUp className="w-4 h-4 mr-2 text-[#2D6994]" /> 方式一：上传备份文件
+                <div className="bg-[#FAF7F5] p-4 rounded-xl border border-[#AC9B95]/30">
+                  <h4 className="font-semibold text-[#3A2923] mb-1.5 flex items-center">
+                    <FileUp className="w-4 h-4 mr-2 text-[#8D4429]" /> 方式一：上传备份文件
                   </h4>
-                  <p className="text-xs text-[#697A88] mb-3">
+                  <p className="text-xs text-[#8C776D] mb-3">
                     选择之前下载的 .json 备份文件进行恢复。
                   </p>
                   <button 
                     onClick={() => jsonFileRef.current?.click()}
-                    className="w-full py-2.5 bg-white border border-slate-300 text-[#2C3842] rounded-xl hover:bg-slate-50 font-semibold shadow-sm flex items-center justify-center text-sm transition-colors"
+                    className="w-full py-2.5 bg-white border border-[#AC9B95]/40 text-[#3A2923] rounded-xl hover:bg-stone-50 font-semibold shadow-sm flex items-center justify-center text-sm transition-colors"
                   >
                     <Upload className="w-4 h-4 mr-2" /> 选择文件
                   </button>
                 </div>
 
-                <div className="border-t border-slate-100 pt-4 space-y-3">
-                  <h4 className="font-medium text-[#2C3842] text-sm flex items-center">
-                    <ClipboardCopy className="w-4 h-4 mr-2 text-[#697A88]" /> 方式二：粘贴文本
+                <div className="border-t border-[#AC9B95]/30 pt-4 space-y-3">
+                  <h4 className="font-medium text-[#3A2923] text-sm flex items-center">
+                    <ClipboardCopy className="w-4 h-4 mr-2 text-[#8C776D]" /> 方式二：粘贴文本
                   </h4>
                   <textarea 
                     value={importText}
                     onChange={(e) => setImportText(e.target.value)}
                     placeholder='在此粘贴 JSON 数据...'
-                    className="w-full h-24 p-3 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#2D6994] text-[#2C3842]"
+                    className="w-full h-24 p-3 border border-[#AC9B95]/40 rounded-xl text-xs font-mono focus:ring-2 focus:ring-[#8D4429] text-[#3A2923]"
                   />
                   <button 
                     onClick={() => tryRestore(importText)}
                     disabled={!importText}
-                    className="w-full py-2.5 bg-[#D87048] text-white rounded-xl hover:bg-[#c25e37] font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+                    className="w-full py-2.5 bg-[#8D4429] text-white rounded-xl hover:bg-[#723720] font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
                   >
                     覆盖并恢复数据
                   </button>
@@ -1513,12 +1512,12 @@ export const App: React.FC = () => {
           />
           
           <div className="relative w-80 bg-white h-full shadow-2xl p-5 flex flex-col gap-5 overflow-y-auto animate-in slide-in-from-right duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+            <div className="flex justify-between items-center border-b border-[#AC9B95]/30 pb-3">
               <div className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-[#2D6994]" />
-                <h2 className="text-lg font-bold text-[#2C3842]">功能菜单</h2>
+                <Package className="w-5 h-5 text-[#8D4429]" />
+                <h2 className="text-lg font-bold text-[#3A2923]">功能菜单</h2>
               </div>
-              <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 text-gray-400 hover:bg-slate-100 rounded-full">
+              <button onClick={() => setIsSidebarOpen(false)} className="p-1.5 text-stone-400 hover:bg-stone-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1526,19 +1525,19 @@ export const App: React.FC = () => {
             <div className="space-y-4 flex-1">
               <button 
                 onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-[#2C3842] bg-[#F5B8A9] rounded-xl hover:bg-[#f3a896] shadow-sm transition-colors"
+                className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-semibold text-white bg-[#8D4429] rounded-xl hover:bg-[#723720] shadow-sm transition-colors"
               >
-                <Plus className="w-4 h-4 mr-2 text-[#2C3842]" />
+                <Plus className="w-4 h-4 mr-2 text-white" />
                 新建商品登记
               </button>
 
               {/* Cloud Sync in Mobile Drawer */}
               <button 
                 onClick={() => { setIsCloudModalOpen(true); setIsSidebarOpen(false); }}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2.5 text-sm font-medium text-[#3A2923] bg-[#FAF7F5] border border-[#AC9B95]/30 rounded-xl hover:bg-[#F5F1EF] transition-colors"
               >
                 <div className="flex items-center">
-                  <Cloud className="w-4 h-4 mr-3 text-[#2D6994]" />
+                  <Cloud className="w-4 h-4 mr-3 text-[#8D4429]" />
                   <span>云端数据同步 (Supabase)</span>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
@@ -1549,15 +1548,15 @@ export const App: React.FC = () => {
               </button>
 
               {/* Mobile Settlement Ratio Settings Section */}
-              <div className="bg-[#EAF3F8] p-4 rounded-xl border border-[#72B8D6]/30 space-y-3">
+              <div className="bg-[#FAF7F5] p-4 rounded-xl border border-[#AC9B95]/30 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2D6994]">
-                    <Calculator className="w-4 h-4 text-[#2D6994]" />
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#5F3E32]">
+                    <Calculator className="w-4 h-4 text-[#8D4429]" />
                     <span>结算比例设置 (货架)</span>
                   </div>
                   <button 
                     onClick={() => updateSettlementSettings(DEFAULT_SETTLEMENT)}
-                    className="text-[11px] text-[#2D6994] font-medium hover:underline"
+                    className="text-[11px] text-[#8D4429] font-medium hover:underline"
                   >
                     重置
                   </button>
@@ -1565,7 +1564,7 @@ export const App: React.FC = () => {
                 
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <label className="block text-[#697A88] mb-1">HB3 比例 (%)</label>
+                    <label className="block text-[#8C776D] mb-1">HB3 比例 (%)</label>
                     <input 
                       type="number" 
                       step="1"
@@ -1579,11 +1578,11 @@ export const App: React.FC = () => {
                           hb3Rate: isNaN(val) ? 0 : val / 100
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 bg-white border border-[#72B8D6]/40 rounded-lg text-sm font-bold text-[#2C3842]"
+                      className="w-full px-2.5 py-1.5 bg-white border border-[#AC9B95]/40 rounded-lg text-sm font-bold text-[#3A2923] focus:ring-1 focus:ring-[#8D4429] focus:outline-none"
                     />
                   </div>
                   <div>
-                    <label className="block text-[#697A88] mb-1">HC3 比例 (%)</label>
+                    <label className="block text-[#8C776D] mb-1">HC3 比例 (%)</label>
                     <input 
                       type="number" 
                       step="1"
@@ -1597,19 +1596,19 @@ export const App: React.FC = () => {
                           hc3Rate: isNaN(val) ? 0 : val / 100
                         });
                       }}
-                      className="w-full px-2.5 py-1.5 bg-white border border-[#72B8D6]/40 rounded-lg text-sm font-bold text-[#2C3842]"
+                      className="w-full px-2.5 py-1.5 bg-white border border-[#AC9B95]/40 rounded-lg text-sm font-bold text-[#3A2923] focus:ring-1 focus:ring-[#8D4429] focus:outline-none"
                     />
                   </div>
                 </div>
-                <div className="text-[10px] text-[#2D6994]/80 leading-tight">
+                <div className="text-[10px] text-[#8C776D] leading-tight">
                   结算金额 = HB3销售额 × {(settlementSettings.hb3Rate * 100).toFixed(0)}% + HC3销售额 × {(settlementSettings.hc3Rate * 100).toFixed(0)}%
                 </div>
               </div>
 
               {/* Bulk operations when items selected */}
               {selectedIds.size > 0 && (
-                <div className="bg-slate-100 p-3 rounded-xl border border-slate-200 space-y-2">
-                  <div className="text-xs font-semibold text-[#2C3842]">
+                <div className="bg-[#FAF7F5] p-3 rounded-xl border border-[#AC9B95]/30 space-y-2">
+                  <div className="text-xs font-semibold text-[#3A2923]">
                     已选定 {selectedIds.size} 项商品批量操作:
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -1622,7 +1621,7 @@ export const App: React.FC = () => {
                     </button>
                     <button 
                       onClick={() => handleBulkListingUpdate(false)} 
-                      className="flex items-center justify-center p-2 bg-white text-[#2C3842] border border-slate-200 rounded-lg text-xs font-medium hover:bg-slate-50"
+                      className="flex items-center justify-center p-2 bg-white text-[#3A2923] border border-[#AC9B95]/30 rounded-lg text-xs font-medium hover:bg-stone-50"
                     >
                       <XCircle className="w-3.5 h-3.5 mr-1" />
                       设为未上架
@@ -1631,20 +1630,20 @@ export const App: React.FC = () => {
                   <div className="grid grid-cols-2 gap-1.5">
                     <button 
                       onClick={() => handleBulkShelfUpdate('HB3')} 
-                      className="flex items-center justify-center p-2 bg-white text-amber-800 border border-amber-200 rounded-lg text-xs font-medium hover:bg-amber-50"
+                      className="flex items-center justify-center p-2 bg-white text-[#5F3E32] border border-[#AC9B95]/40 rounded-lg text-xs font-bold hover:bg-[#F5F1EF]"
                     >
                       设为货架 HB3
                     </button>
                     <button 
                       onClick={() => handleBulkShelfUpdate('HC3')} 
-                      className="flex items-center justify-center p-2 bg-white text-purple-800 border border-purple-200 rounded-lg text-xs font-medium hover:bg-purple-50"
+                      className="flex items-center justify-center p-2 bg-white text-[#BB754B] border border-[#E8C5B0] rounded-lg text-xs font-bold hover:bg-[#FDF3ED]"
                     >
                       设为货架 HC3
                     </button>
                   </div>
                   <button 
                     onClick={handleBatchDelete} 
-                    className="w-full flex items-center justify-center p-2 bg-[#D87048] text-white rounded-lg text-xs font-semibold hover:bg-[#c25e37] shadow-sm"
+                    className="w-full flex items-center justify-center p-2 bg-[#8D4429] text-white rounded-lg text-xs font-semibold hover:bg-[#723720] shadow-sm transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-1" />
                     批量删除选中 ({selectedIds.size})
@@ -1659,7 +1658,7 @@ export const App: React.FC = () => {
                 <button 
                   onClick={() => { handleUndo(); setIsSidebarOpen(false); }}
                   disabled={undoStack.length === 0}
-                  className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-[#2D6994] bg-[#EAF3F8] rounded-xl hover:bg-[#d9ecf5] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-[#5F3E32] bg-[#F5F1EF] rounded-xl hover:bg-[#eae3df] disabled:opacity-40 disabled:pointer-events-none transition-colors border border-[#AC9B95]/30"
                 >
                   <Undo2 className="w-4 h-4 mr-1.5" />
                   撤销 ({undoStack.length})
@@ -1667,7 +1666,7 @@ export const App: React.FC = () => {
                 <button 
                   onClick={() => { handleRedo(); setIsSidebarOpen(false); }}
                   disabled={redoStack.length === 0}
-                  className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-[#2D6994] bg-[#EAF3F8] rounded-xl hover:bg-[#d9ecf5] disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                  className="flex items-center justify-center px-3 py-2 text-xs font-semibold text-[#5F3E32] bg-[#F5F1EF] rounded-xl hover:bg-[#eae3df] disabled:opacity-40 disabled:pointer-events-none transition-colors border border-[#AC9B95]/30"
                 >
                   <Redo2 className="w-4 h-4 mr-1.5" />
                   重做 ({redoStack.length})
@@ -1676,38 +1675,38 @@ export const App: React.FC = () => {
 
               <button 
                 onClick={() => { setIsSalesDetailModalOpen(true); setIsSidebarOpen(false); }}
-                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100"
+                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#3A2923] bg-[#FAF7F5] border border-[#AC9B95]/30 rounded-xl hover:bg-[#F5F1EF]"
               >
-                <Receipt className="w-4 h-4 mr-3 text-[#2D6994]" />
+                <Receipt className="w-4 h-4 mr-3 text-[#8D4429]" />
                 已售商品明细
               </button>
 
               <button 
                 onClick={() => { setIsBackupModalOpen(true); setIsSidebarOpen(false); }}
-                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100"
+                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#3A2923] bg-[#FAF7F5] border border-[#AC9B95]/30 rounded-xl hover:bg-[#F5F1EF]"
               >
-                <Database className="w-4 h-4 mr-3 text-[#2D6994]" />
+                <Database className="w-4 h-4 mr-3 text-[#8D4429]" />
                 数据备份 / 恢复
               </button>
 
               <button 
                 onClick={triggerImport}
-                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100"
+                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#3A2923] bg-[#FAF7F5] border border-[#AC9B95]/30 rounded-xl hover:bg-[#F5F1EF]"
               >
-                <Upload className="w-4 h-4 mr-3 text-[#697A88]" />
+                <Upload className="w-4 h-4 mr-3 text-[#8C776D]" />
                 导入 Excel
               </button>
               
               <button 
                 onClick={exportToExcel}
-                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#2C3842] bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100"
+                className="w-full flex items-center px-4 py-2.5 text-sm font-medium text-[#3A2923] bg-[#FAF7F5] border border-[#AC9B95]/30 rounded-xl hover:bg-[#F5F1EF]"
               >
-                <Download className="w-4 h-4 mr-3 text-[#2D6994]" />
+                <Download className="w-4 h-4 mr-3 text-[#8D4429]" />
                 {selectedIds.size > 0 ? `导出选中 (${selectedIds.size}) Excel` : '导出全部 Excel (含打签)'}
               </button>
             </div>
             
-            <div className="text-[11px] text-[#697A88] text-center border-t border-slate-100 pt-3">
+            <div className="text-[11px] text-[#8C776D] text-center border-t border-[#AC9B95]/20 pt-3">
               周边库存管理表
             </div>
           </div>
@@ -1715,7 +1714,7 @@ export const App: React.FC = () => {
       )}
 
       {/* Header */}
-      <header className="bg-[#2D6994] shadow-md sticky top-0 z-30 border-b border-[#235375]">
+      <header className="bg-[#5F3E32] shadow-md sticky top-0 z-30 border-b border-[#4A2F25]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="p-2 bg-white/15 text-white rounded-xl backdrop-blur-sm border border-white/20 shadow-sm">
@@ -1743,28 +1742,28 @@ export const App: React.FC = () => {
                 <button 
                   onClick={() => handleBulkListingUpdate(false)} 
                   title="设为未上架" 
-                  className="px-2 py-1 text-xs text-[#2C3842] bg-white/90 hover:bg-white rounded-lg flex items-center gap-1 font-semibold"
+                  className="px-2 py-1 text-xs text-[#3A2923] bg-white/90 hover:bg-white rounded-lg flex items-center gap-1 font-semibold"
                 >
                   <XCircle className="w-3.5 h-3.5" /> 下架
                 </button>
                 <button 
                   onClick={() => handleBulkShelfUpdate('HB3')} 
                   title="设为 HB3" 
-                  className="px-2 py-1 text-xs text-amber-900 bg-amber-200 hover:bg-amber-300 rounded-lg font-bold"
+                  className="px-2 py-1 text-xs text-[#5F3E32] bg-[#F5F1EF] hover:bg-[#eae3df] rounded-lg font-bold border border-[#AC9B95]/40"
                 >
                   HB3
                 </button>
                 <button 
                   onClick={() => handleBulkShelfUpdate('HC3')} 
                   title="设为 HC3" 
-                  className="px-2 py-1 text-xs text-purple-900 bg-purple-200 hover:bg-purple-300 rounded-lg font-bold"
+                  className="px-2 py-1 text-xs text-[#BB754B] bg-[#FDF3ED] hover:bg-[#fae4d7] rounded-lg font-bold border border-[#E8C5B0]"
                 >
                   HC3
                 </button>
                 <button 
                   onClick={handleBatchDelete}
                   title="批量删除"
-                  className="p-1.5 text-white bg-[#D87048] hover:bg-[#c25e37] rounded-lg shadow-sm"
+                  className="p-1.5 text-white bg-[#8D4429] hover:bg-[#723720] rounded-lg shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -1782,7 +1781,7 @@ export const App: React.FC = () => {
               title={isCloudConnected ? "云端同步已连接 (Supabase) · 点击查看状态" : "未连接 Supabase 云端 · 点击配置"}
             >
               {isSyncing ? (
-                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-[#72B8D6]" />
+                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin text-[#AC9B95]" />
               ) : isCloudConnected ? (
                 <Cloud className="w-3.5 h-3.5 mr-1.5 text-emerald-400" />
               ) : (
@@ -1799,10 +1798,10 @@ export const App: React.FC = () => {
                 className="flex items-center px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-colors"
                 title={`撤销操作 (Ctrl+Z) - 当前可撤销 ${undoStack.length} 步`}
               >
-                <Undo2 className="w-3.5 h-3.5 mr-1 text-[#72B8D6]" />
+                <Undo2 className="w-3.5 h-3.5 mr-1 text-[#AC9B95]" />
                 <span>撤销</span>
                 {undoStack.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 bg-[#72B8D6] text-[#2D6994] rounded-full text-[10px] font-bold">
+                  <span className="ml-1 px-1.5 py-0.2 bg-[#8D4429] text-white rounded-full text-[10px] font-bold">
                     {undoStack.length}
                   </span>
                 )}
@@ -1813,10 +1812,10 @@ export const App: React.FC = () => {
                 className="flex items-center px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-white/20 disabled:opacity-40 disabled:pointer-events-none rounded-lg transition-colors"
                 title={`重做操作 (Ctrl+Y) - 当前可重做 ${redoStack.length} 步`}
               >
-                <Redo2 className="w-3.5 h-3.5 mr-1 text-[#72B8D6]" />
+                <Redo2 className="w-3.5 h-3.5 mr-1 text-[#AC9B95]" />
                 <span>重做</span>
                 {redoStack.length > 0 && (
-                  <span className="ml-1 px-1.5 py-0.2 bg-[#F5B8A9] text-[#2C3842] rounded-full text-[10px] font-bold">
+                  <span className="ml-1 px-1.5 py-0.2 bg-[#BB754B] text-white rounded-full text-[10px] font-bold">
                     {redoStack.length}
                   </span>
                 )}
@@ -1825,10 +1824,10 @@ export const App: React.FC = () => {
 
             <button 
               onClick={() => setIsSettlementModalOpen(true)}
-              className="flex items-center px-3 py-2 text-xs font-semibold text-[#2D6994] bg-white rounded-lg hover:bg-slate-100 transition-colors shadow-sm"
+              className="flex items-center px-3 py-2 text-xs font-semibold text-[#5F3E32] bg-white rounded-lg hover:bg-stone-100 transition-colors shadow-sm"
               title="设置 HB3 / HC3 结算比例"
             >
-              <Calculator className="w-3.5 h-3.5 mr-1.5 text-[#2D6994]" />
+              <Calculator className="w-3.5 h-3.5 mr-1.5 text-[#8D4429]" />
               结算比例设置
             </button>
 
@@ -1836,7 +1835,7 @@ export const App: React.FC = () => {
               onClick={() => setIsBackupModalOpen(true)}
               className="flex items-center px-3 py-2 text-xs font-medium text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-colors"
             >
-              <Database className="w-3.5 h-3.5 mr-1.5 text-[#72B8D6]" />
+              <Database className="w-3.5 h-3.5 mr-1.5 text-[#AC9B95]" />
               备份 / 恢复
             </button>
             <button 
@@ -1851,14 +1850,14 @@ export const App: React.FC = () => {
               className="flex items-center px-3 py-2 text-xs font-medium text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-colors"
               title="导出包含打签名称、货架位置、是否上架等完整数据的 Excel 表"
             >
-              <Download className="w-3.5 h-3.5 mr-1.5 text-[#72B8D6]" />
+              <Download className="w-3.5 h-3.5 mr-1.5 text-[#AC9B95]" />
               导出 Excel
             </button>
             <button 
               onClick={() => { resetForm(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-              className="flex items-center px-3.5 py-2 text-xs font-semibold text-[#2C3842] bg-[#F5B8A9] rounded-lg hover:bg-[#f3a896] transition-colors shadow-sm"
+              className="flex items-center px-3.5 py-2 text-xs font-semibold text-white bg-[#8D4429] rounded-lg hover:bg-[#723720] transition-colors shadow-sm"
             >
-              {editingId ? <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-[#2C3842]" /> : <Plus className="w-3.5 h-3.5 mr-1.5 text-[#2C3842]" />}
+              {editingId ? <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-white" /> : <Plus className="w-3.5 h-3.5 mr-1.5 text-white" />}
               {editingId ? '取消编辑' : '新建商品'}
             </button>
           </div>
@@ -1873,7 +1872,7 @@ export const App: React.FC = () => {
               title={isCloudConnected ? "云端同步已连接" : "未连接云端"}
             >
               {isSyncing ? (
-                <Loader2 className="w-4 h-4 animate-spin text-[#72B8D6]" />
+                <Loader2 className="w-4 h-4 animate-spin text-[#AC9B95]" />
               ) : isCloudConnected ? (
                 <Cloud className="w-4 h-4" />
               ) : (
@@ -1890,10 +1889,10 @@ export const App: React.FC = () => {
             </button>
             <button 
               onClick={() => setIsSettlementModalOpen(true)}
-              className="p-2 text-[#2D6994] bg-white rounded-lg shadow-sm"
+              className="p-2 text-[#5F3E32] bg-white rounded-lg shadow-sm"
               title="结算设置"
             >
-              <Calculator className="w-4 h-4" />
+              <Calculator className="w-4 h-4 text-[#8D4429]" />
             </button>
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -1908,12 +1907,12 @@ export const App: React.FC = () => {
       {/* Floating Undo Notification Toast */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4 duration-200">
-          <div className="bg-[#2C3842] text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-700/60 flex items-center gap-3 text-sm">
+          <div className="bg-[#3A2923] text-white px-4 py-3 rounded-2xl shadow-xl border border-[#5F3E32] flex items-center gap-3 text-sm">
             <span className="font-medium">{toastMessage.text}</span>
             {toastMessage.isUndoNotification && undoStack.length > 0 && (
               <button 
                 onClick={handleUndo}
-                className="px-2.5 py-1 bg-[#2D6994] hover:bg-[#235375] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                className="px-2.5 py-1 bg-[#8D4429] hover:bg-[#723720] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
               >
                 <Undo2 className="w-3 h-3" />
                 撤销
@@ -1921,7 +1920,7 @@ export const App: React.FC = () => {
             )}
             <button 
               onClick={() => setToastMessage(null)}
-              className="text-slate-400 hover:text-white ml-1"
+              className="text-stone-300 hover:text-white ml-1"
             >
               <X className="w-4 h-4" />
             </button>
@@ -1932,10 +1931,10 @@ export const App: React.FC = () => {
       {/* Initial Loading Overlay */}
       {isLoading && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-xs">
-          <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-150">
-            <Loader2 className="w-8 h-8 animate-spin text-[#2D6994]" />
-            <div className="text-sm font-bold text-[#2C3842]">正在连接 Supabase 加载云端库存...</div>
-            <div className="text-xs text-[#697A88]">多设备数据读取与状态核对中</div>
+          <div className="bg-white p-6 rounded-2xl shadow-xl border border-[#AC9B95]/30 flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-150">
+            <Loader2 className="w-8 h-8 animate-spin text-[#8D4429]" />
+            <div className="text-sm font-bold text-[#3A2923]">正在连接 Supabase 加载云端库存...</div>
+            <div className="text-xs text-[#8C776D]">多设备数据读取与状态核对中</div>
           </div>
         </div>
       )}
@@ -1981,14 +1980,14 @@ export const App: React.FC = () => {
             value={`¥${stats.potentialRevenue.toLocaleString()}`} 
             subValue={`${stats.totalStock} 件在库`}
             icon={Package} 
-            colorClass="bg-[#72B8D6] text-[#2D6994]" 
+            colorClass="bg-[#8D4429] text-[#8D4429]" 
           />
           <StatsCard 
             title="总销售额" 
             value={`¥${stats.actualRevenue.toLocaleString()}`} 
             subValue={`${stats.totalSold} 件已出 · 点击看明细`}
             icon={DollarSign} 
-            colorClass="bg-[#2D6994] text-[#2D6994]" 
+            colorClass="bg-[#5F3E32] text-[#5F3E32]" 
             onClick={() => setIsSalesDetailModalOpen(true)}
           />
           {/* Settlement Card: Total & Pending Settlement */}
@@ -1996,14 +1995,14 @@ export const App: React.FC = () => {
             title="结算金额" 
             value={
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-xl sm:text-2xl font-bold text-[#2C3842]" title="总结算金额">
+                <span className="text-xl sm:text-2xl font-bold text-[#3A2923]" title="总结算金额">
                   ¥{stats.settlementAmount.toFixed(1)}
                 </span>
                 <span 
                   className={`text-xs px-2 py-0.5 rounded-full font-bold border ${
                     stats.pendingSettlementAmount > 0 
-                      ? 'bg-[#FAECE6] text-[#D87048] border-[#F5B8A9]' 
-                      : 'bg-[#EAF3F8] text-[#2D6994] border-[#72B8D6]/40'
+                      ? 'bg-[#FDF3ED] text-[#BB754B] border-[#E8C5B0]' 
+                      : 'bg-[#F5F1EF] text-[#5F3E32] border-[#AC9B95]/40'
                   }`}
                   title="待结算金额 = 总结算金额 - 已结算金额"
                 >
@@ -2012,19 +2011,19 @@ export const App: React.FC = () => {
               </div>
             } 
             subValue={
-              <div className="flex items-center gap-1.5 text-xs text-[#697A88] truncate">
+              <div className="flex items-center gap-1.5 text-xs text-[#8C776D] truncate">
                 <span>已结: ¥{stats.totalPaidAmount.toFixed(1)}</span>
                 <span>·</span>
-                <span className="text-[#2D6994] font-semibold hover:underline">点击录入/查明细</span>
+                <span className="text-[#8D4429] font-semibold hover:underline">点击录入/查明细</span>
               </div>
             }
             icon={Calculator} 
-            colorClass="bg-[#2D6994] text-[#2D6994]" 
+            colorClass="bg-[#8D4429] text-[#8D4429]" 
             onClick={() => setIsSettlementModalOpen(true)}
             actionButton={
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsSettlementModalOpen(true); }}
-                className="p-1 text-[#2D6994] hover:bg-[#EAF3F8] rounded-lg"
+                className="p-1 text-[#8D4429] hover:bg-[#F5F1EF] rounded-lg"
                 title="已结核销明细与比例设置"
               >
                 <Settings2 className="w-4 h-4" />
@@ -2040,7 +2039,7 @@ export const App: React.FC = () => {
                 : '全部库存充裕'
             }
             icon={Filter} 
-            colorClass={items.filter(i => (i.stock || 0) <= 0).length > 0 ? "bg-[#D87048] text-[#D87048]" : "bg-[#72B8D6] text-[#2D6994]"} 
+            colorClass={items.filter(i => (i.stock || 0) <= 0).length > 0 ? "bg-[#BB754B] text-[#BB754B]" : "bg-[#9B8072] text-[#9B8072]"} 
             onClick={() => {
               if (filterStockStatus === 'all') setFilterStockStatus('in_stock');
               else if (filterStockStatus === 'in_stock') setFilterStockStatus('sold_out');
@@ -2050,16 +2049,16 @@ export const App: React.FC = () => {
         </div>
 
         {/* Input Form Area */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-4 md:p-6 transition-all">
-          <div className="flex justify-between items-center mb-4 md:mb-5 pb-3 border-b border-slate-100">
+        <div className="bg-white rounded-2xl shadow-sm border border-[#AC9B95]/30 p-4 md:p-6 transition-all">
+          <div className="flex justify-between items-center mb-4 md:mb-5 pb-3 border-b border-stone-100">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-5 bg-[#72B8D6] rounded-full"></div>
-              <h2 className="text-base md:text-lg font-bold text-[#2C3842]">
+              <div className="w-2.5 h-5 bg-[#8D4429] rounded-full"></div>
+              <h2 className="text-base md:text-lg font-bold text-[#3A2923]">
                 {editingId ? `编辑商品 #${editingId}` : '商品登记与录入'}
               </h2>
             </div>
             {editingId && (
-              <button onClick={resetForm} className="text-xs font-semibold text-[#697A88] hover:text-[#2C3842] bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg transition-colors">
+              <button onClick={resetForm} className="text-xs font-semibold text-[#8C776D] hover:text-[#3A2923] bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-lg transition-colors">
                 放弃修改
               </button>
             )}
@@ -2083,20 +2082,20 @@ export const App: React.FC = () => {
               required
             />
             <div>
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">款式规格</label>
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">款式规格</label>
               <input 
                 type="text" 
                 value={formData.style || ''} 
                 onChange={(e) => handleInputChange('style', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm text-[#2C3842]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-sm text-[#3A2923]"
                 placeholder="例如：镭射票 / 15cm 站姿"
               />
             </div>
             
             {/* Shelf Location with quick HB3 / HC3 selector */}
             <div>
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">
-                货架位置 <span className="text-[#2D6994] text-xs font-normal">(主要结算依据)</span>
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">
+                货架位置 <span className="text-[#8D4429] text-xs font-normal">(主要结算依据)</span>
               </label>
               <div className="flex gap-1.5">
                 <input 
@@ -2104,15 +2103,15 @@ export const App: React.FC = () => {
                   value={formData.shelfLocation || ''}
                   onChange={(e) => handleInputChange('shelfLocation', e.target.value.toUpperCase())}
                   placeholder="例如：HB3 或 HC3"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm font-medium text-[#2C3842]"
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-sm font-medium text-[#3A2923]"
                 />
                 <button 
                   type="button" 
                   onClick={() => handleInputChange('shelfLocation', 'HB3')}
                   className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
                     (formData.shelfLocation || '').toUpperCase() === 'HB3'
-                      ? 'bg-amber-500 text-white border-amber-600'
-                      : 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                      ? 'bg-[#5F3E32] text-white border-[#4A2F25]'
+                      : 'bg-[#F5F1EF] text-[#5F3E32] border-[#AC9B95]/40 hover:bg-[#eae3df]'
                   }`}
                 >
                   HB3
@@ -2122,8 +2121,8 @@ export const App: React.FC = () => {
                   onClick={() => handleInputChange('shelfLocation', 'HC3')}
                   className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
                     (formData.shelfLocation || '').toUpperCase() === 'HC3'
-                      ? 'bg-purple-600 text-white border-purple-700'
-                      : 'bg-purple-50 text-purple-800 border-purple-200 hover:bg-purple-100'
+                      ? 'bg-[#BB754B] text-white border-[#a35e36]'
+                      : 'bg-[#FDF3ED] text-[#BB754B] border-[#E8C5B0] hover:bg-[#fae4d7]'
                   }`}
                 >
                   HC3
@@ -2133,22 +2132,22 @@ export const App: React.FC = () => {
 
             {/* Listing Status Toggle (是否已上架) */}
             <div className="flex flex-col justify-end pb-1">
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">上架状态</label>
-              <label className="flex items-center gap-2.5 p-2 border border-slate-200 rounded-lg cursor-pointer hover:bg-slate-50 bg-white">
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">上架状态</label>
+              <label className="flex items-center gap-2.5 p-2 border border-[#AC9B95]/30 rounded-lg cursor-pointer hover:bg-stone-50 bg-white">
                 <input 
                   type="checkbox" 
                   checked={formData.isListed !== undefined ? formData.isListed : true}
                   onChange={(e) => handleInputChange('isListed', e.target.checked)}
                   className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded cursor-pointer accent-emerald-600"
                 />
-                <span className="text-sm font-semibold text-[#2C3842] flex items-center gap-1.5">
+                <span className="text-sm font-semibold text-[#3A2923] flex items-center gap-1.5">
                   {formData.isListed !== false ? (
                     <span className="text-emerald-700 flex items-center gap-1">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" /> 已上架展示
                     </span>
                   ) : (
-                    <span className="text-[#697A88] flex items-center gap-1">
-                      <XCircle className="w-4 h-4 text-[#697A88]" /> 未上架 / 暂存
+                    <span className="text-[#8C776D] flex items-center gap-1">
+                      <XCircle className="w-4 h-4 text-[#8C776D]" /> 未上架 / 暂存
                     </span>
                   )}
                 </span>
@@ -2156,49 +2155,49 @@ export const App: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">单价 (¥)</label>
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">单价 (¥)</label>
               <input 
                 type="number" 
                 min="0" 
                 step="0.01"
                 value={formData.price || ''} 
                 onChange={(e) => handleInputChange('price', parseFloat(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm font-medium text-[#2C3842]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-sm font-medium text-[#3A2923]"
                 placeholder="0.00"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">当前库存数量</label>
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">当前库存数量</label>
               <input 
                 type="number" 
                 min="0" 
                 value={formData.stock !== undefined ? formData.stock : ''} 
                 onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm font-medium text-[#2C3842]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-sm font-medium text-[#3A2923]"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">已出数量 (初始/历史)</label>
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">已出数量 (初始/历史)</label>
               <input 
                 type="number" 
                 min="0" 
                 value={formData.sold || 0} 
                 onChange={(e) => handleInputChange('sold', parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] bg-slate-50 text-sm text-[#2C3842]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8D4429] bg-stone-50 text-sm text-[#3A2923]"
               />
             </div>
 
             <div className="lg:col-span-3">
-              <label className="block text-sm font-medium text-[#2C3842] mb-1">备注说明</label>
+              <label className="block text-sm font-medium text-[#3A2923] mb-1">备注说明</label>
               <input 
                 type="text" 
                 value={formData.remark || ''} 
                 onChange={(e) => handleInputChange('remark', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-sm text-[#2C3842]"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-sm text-[#3A2923]"
                 placeholder="可选备注（如：下周补货、打折等）"
               />
             </div>
@@ -2206,7 +2205,7 @@ export const App: React.FC = () => {
             <div className="flex items-end pb-0.5">
               <button 
                 type="submit" 
-                className="w-full py-2.5 bg-[#2D6994] text-white text-sm font-semibold rounded-xl hover:bg-[#235375] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#2D6994] shadow-sm transition-colors flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 bg-[#8D4429] text-white text-sm font-semibold rounded-xl hover:bg-[#723720] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#8D4429] shadow-sm transition-colors flex items-center justify-center gap-1.5"
               >
                 {editingId ? <RefreshCw className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
                 {editingId ? '更新商品信息' : '保存商品条目'}
@@ -2227,7 +2226,7 @@ export const App: React.FC = () => {
                 placeholder="搜索作品、角色、款式、货架、编号..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] text-[#2C3842]"
+                className="w-full pl-10 pr-4 py-2 border border-[#AC9B95]/40 rounded-xl text-sm focus:ring-2 focus:ring-[#8D4429] focus:border-[#8D4429] text-[#3A2923]"
               />
               {searchQuery && (
                 <button 
@@ -2247,8 +2246,8 @@ export const App: React.FC = () => {
                 onClick={() => setFilterStockStatus('all')}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all ${
                   filterStockStatus === 'all'
-                    ? 'bg-[#2D6994] text-white border-[#235375] shadow-sm' 
-                    : 'bg-slate-50 text-[#697A88] border-slate-200 hover:bg-slate-100 hover:text-[#2C3842]'
+                    ? 'bg-[#8D4429] text-white border-[#723720] shadow-sm' 
+                    : 'bg-stone-50 text-[#8C776D] border-stone-200 hover:bg-stone-100 hover:text-[#3A2923]'
                 }`}
               >
                 全部 ({items.length})
@@ -2260,8 +2259,8 @@ export const App: React.FC = () => {
                 onClick={() => setFilterStockStatus(filterStockStatus === 'in_stock' ? 'all' : 'in_stock')}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
                   filterStockStatus === 'in_stock' 
-                    ? 'bg-[#72B8D6] text-white border-[#5ea2bf] shadow-sm' 
-                    : 'bg-[#EAF3F8] text-[#2D6994] border-[#72B8D6]/40 hover:bg-[#d9ecf5]'
+                    ? 'bg-[#5F3E32] text-white border-[#4A2F25] shadow-sm' 
+                    : 'bg-[#F5F1EF] text-[#5F3E32] border-[#AC9B95]/40 hover:bg-[#eae3df]'
                 }`}
               >
                 <CheckCircle2 className="w-3.5 h-3.5" />
@@ -2274,8 +2273,8 @@ export const App: React.FC = () => {
                 onClick={() => setFilterStockStatus(filterStockStatus === 'sold_out' ? 'all' : 'sold_out')}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1 transition-all ${
                   filterStockStatus === 'sold_out' 
-                    ? 'bg-[#D87048] text-white border-[#c25e37] shadow-sm' 
-                    : 'bg-[#FDF1EC] text-[#D87048] border-[#D87048]/30 hover:bg-[#fae2d9]'
+                    ? 'bg-[#BB754B] text-white border-[#a35e36] shadow-sm' 
+                    : 'bg-[#FDF3ED] text-[#BB754B] border-[#E8C5B0] hover:bg-[#fae4d7]'
                 }`}
               >
                 <AlertTriangle className="w-3.5 h-3.5" />
@@ -2288,14 +2287,14 @@ export const App: React.FC = () => {
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-all ${
                   showAdvancedFilters || (filterShelf || filterListedStatus !== 'all')
-                    ? 'bg-[#EAF3F8] text-[#2D6994] border-[#72B8D6] ring-2 ring-[#72B8D6]/20'
-                    : 'bg-white text-[#2C3842] border-slate-300 hover:bg-slate-50'
+                    ? 'bg-[#F5F1EF] text-[#8D4429] border-[#AC9B95] ring-2 ring-[#8D4429]/20'
+                    : 'bg-white text-[#3A2923] border-[#AC9B95]/40 hover:bg-stone-50'
                 }`}
               >
                 <SlidersHorizontal className="w-3.5 h-3.5" />
                 <span>更多筛选</span>
                 {(filterShelf || filterListedStatus !== 'all') && (
-                  <span className="w-2 h-2 rounded-full bg-[#2D6994]" />
+                  <span className="w-2 h-2 rounded-full bg-[#8D4429]" />
                 )}
                 {showAdvancedFilters ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
               </button>
@@ -2304,15 +2303,15 @@ export const App: React.FC = () => {
 
           {/* Collapsible Advanced Filter Panel */}
           {showAdvancedFilters && (
-            <div className="bg-[#F8FAFC] rounded-xl p-3.5 border border-slate-200/80 space-y-3 text-xs animate-in fade-in duration-150">
+            <div className="bg-[#FAF7F5] rounded-xl p-3.5 border border-[#AC9B95]/30 space-y-3 text-xs animate-in fade-in duration-150">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {/* Shelf Location Filter */}
                 <div>
-                  <label className="block text-[#697A88] font-semibold mb-1 flex items-center gap-1">
+                  <label className="block text-[#8C776D] font-semibold mb-1 flex items-center gap-1">
                     <Tag className="w-3.5 h-3.5 text-gray-400" /> 货架位置
                   </label>
                   <select 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-medium focus:ring-2 focus:ring-[#2D6994] text-xs text-[#2C3842]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white font-medium focus:ring-2 focus:ring-[#8D4429] text-xs text-[#3A2923]"
                     value={filterShelf}
                     onChange={(e) => setFilterShelf(e.target.value)}
                   >
@@ -2324,11 +2323,11 @@ export const App: React.FC = () => {
 
                 {/* Listing Status Filter */}
                 <div>
-                  <label className="block text-[#697A88] font-semibold mb-1 flex items-center gap-1">
+                  <label className="block text-[#8C776D] font-semibold mb-1 flex items-center gap-1">
                     <Layers className="w-3.5 h-3.5 text-gray-400" /> 上架状态
                   </label>
                   <select 
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-medium focus:ring-2 focus:ring-[#2D6994] text-xs text-[#2C3842]"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white font-medium focus:ring-2 focus:ring-[#8D4429] text-xs text-[#3A2923]"
                     value={filterListedStatus}
                     onChange={(e) => setFilterListedStatus(e.target.value as any)}
                   >
@@ -2340,11 +2339,11 @@ export const App: React.FC = () => {
 
                 {/* Sorting Selector */}
                 <div>
-                  <label className="block text-[#697A88] font-semibold mb-1 flex items-center gap-1">
+                  <label className="block text-[#8C776D] font-semibold mb-1 flex items-center gap-1">
                     <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" /> 数据排序
                   </label>
                   <select 
-                    className="w-full px-3 py-2 border border-[#72B8D6]/40 bg-[#EAF3F8]/50 text-[#2D6994] rounded-lg font-semibold focus:ring-2 focus:ring-[#2D6994] text-xs"
+                    className="w-full px-3 py-2 border border-[#AC9B95]/40 bg-[#F5F1EF]/50 text-[#8D4429] rounded-lg font-semibold focus:ring-2 focus:ring-[#8D4429] text-xs"
                     value={`${sortField}-${sortOrder}`}
                     onChange={(e) => {
                       const [field, order] = e.target.value.split('-');
@@ -2368,11 +2367,11 @@ export const App: React.FC = () => {
           )}
 
           {/* Bottom Row: Results Count & Clear Button */}
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-            <div className="flex items-center gap-2 text-[#697A88] font-medium">
-              <span>当前结果: <b className="text-[#2C3842]">{filteredItems.length}</b> 件</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-100 text-xs">
+            <div className="flex items-center gap-2 text-[#8C776D] font-medium">
+              <span>当前结果: <b className="text-[#3A2923]">{filteredItems.length}</b> 件</span>
               {(filterShelf || filterListedStatus !== 'all' || filterStockStatus !== 'all' || searchQuery) && (
-                <span className="text-[#2D6994] bg-[#EAF3F8] px-2 py-0.5 rounded-md text-[11px] font-semibold">
+                <span className="text-[#8D4429] bg-[#F5F1EF] px-2 py-0.5 rounded-md text-[11px] font-semibold border border-[#AC9B95]/30">
                   筛选中
                 </span>
               )}
@@ -2386,7 +2385,7 @@ export const App: React.FC = () => {
                   setFilterStockStatus('all');
                   setSearchQuery(''); 
                 }}
-                className="px-2.5 py-1 text-xs text-[#D87048] hover:bg-[#FDF1EC] rounded-lg border border-[#D87048]/30 font-semibold transition-colors flex items-center gap-1"
+                className="px-2.5 py-1 text-xs text-[#BB754B] hover:bg-[#FDF3ED] rounded-lg border border-[#E8C5B0] font-semibold transition-colors flex items-center gap-1"
               >
                 <X className="w-3 h-3" />
                 清空全部筛选
@@ -2398,19 +2397,19 @@ export const App: React.FC = () => {
         {/* Mobile: Card List View */}
         <div className="md:hidden space-y-3">
           {filteredItems.length > 0 && (
-            <div className="flex items-center justify-between px-2 text-xs text-[#697A88]">
+            <div className="flex items-center justify-between px-2 text-xs text-[#8C776D]">
               <label className="flex items-center space-x-2">
                 <input 
                   type="checkbox" 
-                  className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
+                  className="h-4 w-4 text-[#8D4429] focus:ring-[#8D4429] border-gray-300 rounded cursor-pointer accent-[#8D4429]"
                   checked={isAllSelected}
                   onChange={toggleSelectAll}
                 />
                 <span>全选本页 ({filteredItems.length} 项)</span>
               </label>
               <div className="text-right text-[11px]">
-                <span className="text-[#2D6994] font-bold">总结: ¥{stats.settlementAmount.toFixed(1)}</span>
-                <span className="text-[#D87048] font-bold ml-1.5 bg-[#FEF6EE] px-1.5 py-0.5 rounded border border-[#F9DBAF]">待结: ¥{stats.pendingSettlementAmount.toFixed(1)}</span>
+                <span className="text-[#5F3E32] font-bold">总结: ¥{stats.settlementAmount.toFixed(1)}</span>
+                <span className="text-[#BB754B] font-bold ml-1.5 bg-[#FDF3ED] px-1.5 py-0.5 rounded border border-[#E8C5B0]">待结: ¥{stats.pendingSettlementAmount.toFixed(1)}</span>
               </div>
             </div>
           )}
@@ -2421,26 +2420,26 @@ export const App: React.FC = () => {
               onClick={(e) => handleEdit(e, item)}
               className={`bg-white rounded-2xl shadow-sm border p-4 transition-all ${
                 selectedIds.has(item.id) 
-                  ? 'border-[#2D6994] ring-2 ring-[#2D6994]/30 bg-[#EAF3F8]/30' 
-                  : 'border-slate-200/80 hover:border-slate-300'
+                  ? 'border-[#8D4429] ring-2 ring-[#8D4429]/30 bg-[#F5F1EF]/30' 
+                  : 'border-[#AC9B95]/30 hover:border-[#AC9B95]/60'
               }`}
             >
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-start gap-2.5">
                   <input 
                     type="checkbox" 
-                    className="mt-1 h-5 w-5 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
+                    className="mt-1 h-5 w-5 text-[#8D4429] focus:ring-[#8D4429] border-gray-300 rounded cursor-pointer accent-[#8D4429]"
                     checked={selectedIds.has(item.id)}
                     onChange={() => toggleSelectRow(item.id)}
                     onClick={(e) => e.stopPropagation()}
                   />
                   <div>
-                    <div className="font-bold text-[#2C3842] text-base leading-tight">
+                    <div className="font-bold text-[#3A2923] text-base leading-tight">
                       {item.style || '默认款式'}
                     </div>
-                    <div className="text-xs text-[#697A88] mt-1 flex items-center gap-1.5">
-                      <span className="font-medium text-[#2C3842]">{item.character}</span>
-                      <span className="text-slate-300">·</span> 
+                    <div className="text-xs text-[#8C776D] mt-1 flex items-center gap-1.5">
+                      <span className="font-medium text-[#3A2923]">{item.character}</span>
+                      <span className="text-stone-300">·</span> 
                       <span>{item.series}</span>
                     </div>
                   </div>
@@ -2451,80 +2450,80 @@ export const App: React.FC = () => {
                     {/* Shelf badge */}
                     <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                       item.shelfLocation === 'HB3' 
-                        ? 'bg-[#EAF3F8] text-[#2D6994] border border-[#72B8D6]/40' 
-                        : (item.shelfLocation === 'HC3' ? 'bg-[#FAECE6] text-[#D87048] border border-[#F5B8A9]/60' : 'bg-slate-100 text-[#697A88]')
+                        ? 'bg-[#F5F1EF] text-[#5F3E32] border border-[#AC9B95]/40' 
+                        : (item.shelfLocation === 'HC3' ? 'bg-[#FDF3ED] text-[#BB754B] border border-[#E8C5B0]' : 'bg-stone-100 text-[#8C776D]')
                     }`}>
                       {item.shelfLocation || '未设货架'}
                     </span>
                     {/* Listed status badge */}
                     {item.isListed ? (
-                      <span className="px-1.5 py-0.5 rounded bg-[#E8F5FA] text-[#2D6994] border border-[#72B8D6]/30 text-[10px] font-semibold flex items-center gap-0.5">
+                      <span className="px-1.5 py-0.5 rounded bg-[#F5F1EF] text-[#8D4429] border border-[#AC9B95]/30 text-[10px] font-semibold flex items-center gap-0.5">
                         <CheckCircle2 className="w-2.5 h-2.5" /> 已上架
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[#697A88] text-[10px] font-medium">
+                      <span className="px-1.5 py-0.5 rounded bg-stone-100 text-[#8C776D] text-[10px] font-medium">
                         未上架
                       </span>
                     )}
                   </div>
-                  <span className="text-xs font-bold text-[#2D6994]">
+                  <span className="text-xs font-bold text-[#8D4429]">
                     ¥{item.price.toFixed(2)}
                   </span>
                 </div>
               </div>
 
               {/* Data Grid: Stock, Sold, Total Revenue */}
-              <div className="grid grid-cols-3 gap-2 bg-[#F8FAFC] p-2.5 rounded-xl text-center mt-3 border border-slate-100">
+              <div className="grid grid-cols-3 gap-2 bg-[#FAF7F5] p-2.5 rounded-xl text-center mt-3 border border-[#AC9B95]/20">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-[#697A88]">库存</span>
-                  <span className={`text-sm font-bold ${item.stock > 0 ? 'text-[#2C3842]' : 'text-[#D87048]'}`}>
+                  <span className="text-[10px] text-[#8C776D]">库存</span>
+                  <span className={`text-sm font-bold ${item.stock > 0 ? 'text-[#3A2923]' : 'text-[#BB754B]'}`}>
                     {item.stock > 0 ? item.stock : '已售罄'}
                   </span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-[#697A88]">已出</span>
-                  <span className="text-sm font-bold text-[#2D6994]">{item.sold}</span>
+                  <span className="text-[10px] text-[#8C776D]">已出</span>
+                  <span className="text-sm font-bold text-[#8D4429]">{item.sold}</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-[#697A88]">销售额</span>
-                  <span className="text-sm font-bold text-[#2C3842]">
+                  <span className="text-[10px] text-[#8C776D]">销售额</span>
+                  <span className="text-sm font-bold text-[#3A2923]">
                     ¥{(item.sold * item.price).toFixed(1)}
                   </span>
                 </div>
               </div>
 
               {item.remark && (
-                <div className="mt-2 text-xs text-[#697A88] italic bg-amber-50/60 px-2 py-1 rounded border border-amber-100">
+                <div className="mt-2 text-xs text-[#8C776D] italic bg-[#FDF3ED]/60 px-2 py-1 rounded border border-[#E8C5B0]/50">
                   注: {item.remark}
                 </div>
               )}
 
-              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
+              <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between gap-2">
                 <button 
                   onClick={(e) => handleQuickSell(e, item.id)}
                   disabled={item.stock <= 0}
-                  className="flex-1 bg-[#EAF3F8] text-[#2D6994] py-2 px-3 rounded-xl text-xs font-bold hover:bg-[#d9ecf5] flex justify-center items-center disabled:opacity-40 transition-colors shadow-xs"
+                  className="flex-1 bg-[#FDF3ED] text-[#BB754B] py-2 px-3 rounded-xl text-xs font-bold hover:bg-[#fae4d7] flex justify-center items-center disabled:opacity-40 transition-colors shadow-xs border border-[#E8C5B0]/40"
                 >
                   <ShoppingCart className="w-3.5 h-3.5 mr-1.5 pointer-events-none" /> 售出 +1
                 </button>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button 
                     onClick={(e) => handleEdit(e, item)}
-                    className="bg-[#EAF3F8] text-[#2D6994] px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#d9ecf5] flex items-center gap-1 transition-colors"
+                    className="bg-[#F5F1EF] text-[#8D4429] px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#eae3df] flex items-center gap-1 transition-colors border border-[#AC9B95]/30"
                     title="编辑商品"
                   >
                     <Edit2 className="w-3.5 h-3.5 pointer-events-none" /> 编辑
                   </button>
                   <button 
                     onClick={(e) => handleDuplicate(e, item)}
-                    className="bg-slate-100 text-[#2C3842] px-2 py-2 rounded-xl text-xs font-semibold hover:bg-slate-200 flex items-center transition-colors"
+                    className="bg-stone-100 text-[#5F3E32] px-2 py-2 rounded-xl text-xs font-semibold hover:bg-stone-200 flex items-center transition-colors border border-stone-200"
                     title="复制为新商品"
                   >
                     <Copy className="w-3.5 h-3.5 pointer-events-none" />
                   </button>
                   <button 
                     onClick={(e) => handleDelete(e, item.id)}
-                    className="bg-[#FDF1EC] text-[#D87048] px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#FAECE6] flex items-center gap-1 transition-colors"
+                    className="bg-[#FDF3ED] text-[#8D4429] px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#fae4d7] flex items-center gap-1 transition-colors border border-[#E8C5B0]/40"
                     title="删除商品"
                   >
                     <Trash2 className="w-3.5 h-3.5 pointer-events-none" /> 删除
@@ -2535,9 +2534,9 @@ export const App: React.FC = () => {
           ))}
 
           {filteredItems.length === 0 && (
-            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 text-[#697A88]">
-              <Package className="w-12 h-12 mx-auto mb-2 text-slate-300" />
-              <p className="font-medium text-sm text-[#2C3842]">未找到符合条件的商品</p>
+            <div className="text-center py-12 bg-white rounded-2xl border border-[#AC9B95]/30 text-[#8C776D]">
+              <Package className="w-12 h-12 mx-auto mb-2 text-[#AC9B95]" />
+              <p className="font-medium text-sm text-[#3A2923]">未找到符合条件的商品</p>
               <button 
                 onClick={() => {
                   setSearchQuery('');
@@ -2545,7 +2544,7 @@ export const App: React.FC = () => {
                   setFilterListedStatus('all');
                   setFilterStockStatus('all');
                 }}
-                className="mt-2 text-xs text-[#2D6994] font-semibold hover:underline"
+                className="mt-2 text-xs text-[#8D4429] font-semibold hover:underline"
               >
                 重置所有筛选条件
               </button>
@@ -2554,10 +2553,10 @@ export const App: React.FC = () => {
         </div>
 
         {/* Desktop: Table View with Draggable Column Resizing */}
-        <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
+        <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-[#AC9B95]/30 overflow-hidden">
           <div className="overflow-x-auto">
             <table 
-              className="w-full divide-y divide-slate-200 border-separate border-spacing-0"
+              className="w-full divide-y divide-[#AC9B95]/20 border-separate border-spacing-0"
               style={{ minWidth: `${totalTableWidth}px`, tableLayout: 'fixed' }}
             >
               <colgroup>
@@ -2566,12 +2565,12 @@ export const App: React.FC = () => {
                   <col key={col.fieldId} style={{ width: `${colWidths[col.fieldId] || col.defaultWidth}px` }} />
                 ))}
               </colgroup>
-              <thead className="bg-[#F8FAFC]">
+              <thead className="bg-[#FAF7F5]">
                 <tr>
-                  <th className="px-4 py-3.5 w-12 min-w-[48px] bg-[#F8FAFC] border-b border-slate-200">
+                  <th className="px-4 py-3.5 w-12 min-w-[48px] bg-[#FAF7F5] border-b border-[#AC9B95]/30">
                     <input 
                       type="checkbox" 
-                      className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
+                      className="h-4 w-4 text-[#8D4429] focus:ring-[#8D4429] border-gray-300 rounded cursor-pointer accent-[#8D4429]"
                       checked={isAllSelected}
                       onChange={toggleSelectAll}
                     />
@@ -2583,12 +2582,12 @@ export const App: React.FC = () => {
                     return (
                       <th 
                         key={col.fieldId}
-                        className={`px-3.5 py-3.5 text-xs font-bold text-[#697A88] uppercase tracking-wider relative select-none transition-colors border-b border-slate-200 ${
-                          col.key ? 'cursor-pointer hover:bg-slate-100/90' : ''
+                        className={`px-3.5 py-3.5 text-xs font-bold text-[#8C776D] uppercase tracking-wider relative select-none transition-colors border-b border-[#AC9B95]/30 ${
+                          col.key ? 'cursor-pointer hover:bg-[#F5F1EF]' : ''
                         } ${
                           isSticky 
-                            ? 'sticky right-0 bg-[#F8FAFC] z-20 border-l border-slate-200/90 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]' 
-                            : 'bg-[#F8FAFC]'
+                            ? 'sticky right-0 bg-[#FAF7F5] z-20 border-l border-[#AC9B95]/30 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]' 
+                            : 'bg-[#FAF7F5]'
                         } ${col.align === 'center' ? 'text-center' : 'text-left'}`}
                         style={{ width: `${colWidths[col.fieldId] || col.defaultWidth}px` }}
                         onClick={() => col.key && handleSort(col.key)}
@@ -2597,9 +2596,9 @@ export const App: React.FC = () => {
                           <span className="truncate">{col.label}</span>
                           {col.key && (
                             sortField === col.key ? (
-                              sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-[#2D6994] shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-[#2D6994] shrink-0" />
+                              sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-[#8D4429] shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-[#8D4429] shrink-0" />
                             ) : (
-                              <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 shrink-0" />
+                              <ArrowUpDown className="w-3 h-3 text-[#AC9B95] opacity-0 group-hover:opacity-100 shrink-0" />
                             )
                           )}
                         </div>
@@ -2614,11 +2613,11 @@ export const App: React.FC = () => {
                           }}
                           title="按住左右拖动调整此列宽 (双击恢复默认)"
                           className={`absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-30 flex items-center justify-center group/handle transition-colors ${
-                            isResizingThis ? 'bg-[#2D6994]/20' : 'hover:bg-[#2D6994]/15'
+                            isResizingThis ? 'bg-[#8D4429]/20' : 'hover:bg-[#8D4429]/15'
                           }`}
                         >
                           <div className={`w-[2px] h-3.5 rounded-full transition-colors ${
-                            isResizingThis ? 'bg-[#2D6994]' : 'bg-slate-300 group-hover/handle:bg-[#2D6994]'
+                            isResizingThis ? 'bg-[#8D4429]' : 'bg-[#AC9B95] group-hover/handle:bg-[#8D4429]'
                           }`} />
                         </div>
                       </th>
@@ -2626,14 +2625,14 @@ export const App: React.FC = () => {
                   })}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-slate-100">
+              <tbody className="bg-white divide-y divide-[#AC9B95]/15">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-6 py-14 text-center text-[#697A88]">
+                    <td colSpan={12} className="px-6 py-14 text-center text-[#8C776D]">
                       <div className="flex flex-col items-center">
-                        <Package className="w-12 h-12 text-slate-300 mb-2" />
-                        <p className="font-medium text-sm text-[#2C3842]">未找到匹配的商品</p>
-                        <p className="text-xs text-[#697A88] mt-1">请尝试放宽搜索词或重置筛选条件</p>
+                        <Package className="w-12 h-12 text-[#AC9B95] mb-2" />
+                        <p className="font-medium text-sm text-[#3A2923]">未找到匹配的商品</p>
+                        <p className="text-xs text-[#8C776D] mt-1">请尝试放宽搜索词或重置筛选条件</p>
                       </div>
                     </td>
                   </tr>
@@ -2642,31 +2641,31 @@ export const App: React.FC = () => {
                     <tr 
                       key={item.id} 
                       className={`transition-colors ${
-                        selectedIds.has(item.id) ? 'bg-[#EAF3F8]/40' : 'hover:bg-slate-50/70'
+                        selectedIds.has(item.id) ? 'bg-[#F5F1EF]/70' : 'hover:bg-[#FAF7F5]/80'
                       }`}
                     >
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <input 
                           type="checkbox" 
-                          className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
+                          className="h-4 w-4 text-[#8D4429] focus:ring-[#8D4429] border-gray-300 rounded cursor-pointer accent-[#8D4429]"
                           checked={selectedIds.has(item.id)}
                           onChange={() => toggleSelectRow(item.id)}
                           onClick={(e) => e.stopPropagation()}
                         />
                       </td>
-                      <td className="px-3.5 py-3.5 whitespace-nowrap text-xs font-bold text-[#697A88]">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-xs font-bold text-[#8C776D]">
                         #{item.id}
                       </td>
-                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm font-semibold text-[#2C3842]">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm font-semibold text-[#3A2923]">
                         <span className="truncate block" title={item.series}>{item.series}</span>
                       </td>
-                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#2C3842]">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#3A2923]">
                         <span className="truncate block" title={item.character}>{item.character}</span>
                       </td>
-                      <td className="px-3.5 py-3.5 text-sm text-[#2C3842]">
+                      <td className="px-3.5 py-3.5 text-sm text-[#3A2923]">
                         <div className="truncate font-medium" title={item.style}>{item.style || '-'}</div>
                         {item.remark && (
-                          <div className="text-[11px] text-[#697A88] italic truncate mt-0.5" title={item.remark}>
+                          <div className="text-[11px] text-[#8C776D] italic truncate mt-0.5" title={item.remark}>
                             {item.remark}
                           </div>
                         )}
@@ -2675,8 +2674,8 @@ export const App: React.FC = () => {
                       <td className="px-3.5 py-3.5 whitespace-nowrap text-xs">
                         <span className={`px-2.5 py-1 rounded-md font-bold text-xs ${
                           item.shelfLocation === 'HB3' 
-                            ? 'bg-[#EAF3F8] text-[#2D6994] border border-[#72B8D6]/40' 
-                            : (item.shelfLocation === 'HC3' ? 'bg-[#FAECE6] text-[#D87048] border border-[#F5B8A9]/60' : 'bg-slate-100 text-[#697A88]')
+                            ? 'bg-[#F5F1EF] text-[#5F3E32] border border-[#AC9B95]/40' 
+                            : (item.shelfLocation === 'HC3' ? 'bg-[#FDF3ED] text-[#BB754B] border border-[#E8C5B0]' : 'bg-stone-100 text-[#8C776D]')
                         }`}>
                           {item.shelfLocation || '未设'}
                         </span>
@@ -2684,39 +2683,39 @@ export const App: React.FC = () => {
                       {/* Listing Status Column */}
                       <td className="px-3.5 py-3.5 whitespace-nowrap text-xs">
                         {item.isListed ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#E8F5FA] text-[#2D6994] border border-[#72B8D6]/30">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#F5F1EF] text-[#8D4429] border border-[#AC9B95]/30">
                             <CheckCircle2 className="w-3 h-3 mr-1" /> 已上架
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-[#697A88]">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-stone-100 text-[#8C776D]">
                             <XCircle className="w-3 h-3 mr-1" /> 未上架
                           </span>
                         )}
                       </td>
                       {/* Price Column */}
-                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm font-bold text-[#2C3842]">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm font-bold text-[#3A2923]">
                         ¥{item.price.toFixed(2)}
                       </td>
                       {/* Stock Column */}
                       <td className="px-3.5 py-3.5 whitespace-nowrap">
                         <span className={`px-2 py-0.5 inline-flex text-xs font-bold rounded-md ${
-                          item.stock > 0 ? 'bg-[#E8F5FA] text-[#2D6994] border border-[#72B8D6]/30' : 'bg-[#FAECE6] text-[#D87048] border border-[#F5B8A9]'
+                          item.stock > 0 ? 'bg-[#F5F1EF] text-[#5F3E32] border border-[#AC9B95]/30' : 'bg-[#FDF3ED] text-[#BB754B] border border-[#E8C5B0]'
                         }`}>
                           {item.stock > 0 ? item.stock : '售罄'}
                         </span>
                       </td>
                       {/* Sold Column */}
-                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#2C3842] font-medium">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#3A2923] font-medium">
                         {item.sold}
                       </td>
                       {/* Total Sales Column */}
-                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#2D6994] font-bold">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#8D4429] font-bold">
                         ¥{(item.sold * item.price).toFixed(2)}
                       </td>
                       {/* Actions Column (Sticky Right) */}
                       <td 
-                        className={`px-3 py-3.5 whitespace-nowrap text-center text-sm font-medium sticky right-0 z-10 border-l border-slate-200/90 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] ${
-                          selectedIds.has(item.id) ? 'bg-[#f0f6fa]' : 'bg-white group-hover:bg-slate-50'
+                        className={`px-3 py-3.5 whitespace-nowrap text-center text-sm font-medium sticky right-0 z-10 border-l border-[#AC9B95]/30 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] ${
+                          selectedIds.has(item.id) ? 'bg-[#f4efe8]' : 'bg-white group-hover:bg-[#FAF7F5]'
                         }`}
                         style={{ width: `${colWidths['actions'] || 185}px` }}
                       >
@@ -2725,28 +2724,28 @@ export const App: React.FC = () => {
                             onClick={(e) => handleQuickSell(e, item.id)}
                             disabled={item.stock <= 0}
                             title="快速售出 (+1 已出, -1 库存)"
-                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+                            className="p-1.5 text-[#BB754B] bg-[#FDF3ED] hover:bg-[#fae4d7] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0 border border-[#E8C5B0]/50"
                           >
                             <ShoppingCart className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleDuplicate(e, item)}
                             title="复制为新商品"
-                            className="p-1.5 text-[#2C3842] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors shrink-0"
+                            className="p-1.5 text-[#5F3E32] bg-stone-100 hover:bg-stone-200 rounded-lg transition-colors shrink-0 border border-stone-200"
                           >
                             <Copy className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleEdit(e, item)}
                             title="编辑商品"
-                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg transition-colors shrink-0"
+                            className="p-1.5 text-[#8D4429] bg-[#F5F1EF] hover:bg-[#eae3df] rounded-lg transition-colors shrink-0 border border-[#AC9B95]/30"
                           >
                             <Edit2 className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleDelete(e, item.id)}
                             title="删除商品"
-                            className="p-1.5 text-[#D87048] bg-[#FDF1EC] hover:bg-[#FAECE6] rounded-lg transition-colors shrink-0"
+                            className="p-1.5 text-[#8D4429] bg-[#FDF3ED] hover:bg-[#fae4d7] rounded-lg transition-colors shrink-0 border border-[#E8C5B0]/50"
                           >
                             <Trash2 className="w-4 h-4 pointer-events-none" />
                           </button>
@@ -2758,26 +2757,26 @@ export const App: React.FC = () => {
               </tbody>
             </table>
           </div>
-          <div className="bg-[#F8FAFC] px-6 py-3 border-t border-slate-200 text-xs text-[#697A88] flex flex-wrap justify-between items-center gap-2">
+          <div className="bg-[#FAF7F5] px-6 py-3 border-t border-[#AC9B95]/30 text-xs text-[#8C776D] flex flex-wrap justify-between items-center gap-2">
             <div className="flex items-center gap-3">
               <span>显示 {filteredItems.length} 项商品 (共 {items.length} 条记录)</span>
               <button
                 onClick={handleResetColWidths}
-                className="text-[11px] text-[#2D6994] hover:underline flex items-center gap-1 hover:text-[#235375]"
+                className="text-[11px] text-[#8D4429] hover:underline flex items-center gap-1 hover:text-[#723720]"
                 title="重置所有表格列宽为默认值"
               >
                 <RotateCcw className="w-3 h-3" /> 重置列宽
               </button>
             </div>
             <div className="flex items-center gap-4 flex-wrap">
-              <span>总销售额: <b className="text-[#2C3842] font-bold">¥{stats.actualRevenue.toLocaleString()}</b></span>
-              <span className="text-[#2D6994]">
+              <span>总销售额: <b className="text-[#3A2923] font-bold">¥{stats.actualRevenue.toLocaleString()}</b></span>
+              <span className="text-[#5F3E32]">
                 总结算: <b className="font-bold">¥{stats.settlementAmount.toFixed(1)}</b>
               </span>
-              <span className="text-[#2D6994]">
+              <span className="text-[#8D4429]">
                 已结算: <b className="font-bold">¥{stats.totalPaidAmount.toFixed(1)}</b>
               </span>
-              <span className="text-[#D87048] bg-[#FAECE6] px-2.5 py-0.5 rounded-md border border-[#F5B8A9] font-bold">
+              <span className="text-[#BB754B] bg-[#FDF3ED] px-2.5 py-0.5 rounded-md border border-[#E8C5B0] font-bold">
                 待结算: ¥{stats.pendingSettlementAmount.toFixed(1)}
               </span>
             </div>
