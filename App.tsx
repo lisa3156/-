@@ -38,12 +38,16 @@ import {
   Redo2,
   Cloud,
   CloudOff,
-  Loader2
+  Loader2,
+  Calendar,
+  History,
+  RotateCcw
 } from 'lucide-react';
-import { InventoryItem, SortField, SortOrder, SettlementSettings, UndoAction } from './types';
+import { InventoryItem, SortField, SortOrder, SettlementSettings, SettlementPayout, UndoAction } from './types';
 import { InputWithSuggestions } from './components/InputWithSuggestions';
 import { StatsCard } from './components/StatsCard';
 import { CloudSettingsModal } from './components/CloudSettingsModal';
+import { SettlementModal } from './components/SettlementModal';
 import { 
   isSupabaseConfigured,
   fetchInventoryFromCloud,
@@ -66,7 +70,8 @@ const SETTLEMENT_KEY = 'merch_settlement_rates_v1';
 
 const DEFAULT_SETTLEMENT: SettlementSettings = {
   hb3Rate: 0.92,
-  hc3Rate: 0.80
+  hc3Rate: 0.80,
+  payouts: []
 };
 
 const DEFAULT_SHELF_OPTIONS = ['HB3', 'HC3'];
@@ -113,12 +118,105 @@ const DEFAULT_DEMO_ITEMS: InventoryItem[] = [
   }
 ];
 
+const COLUMN_WIDTHS_KEY = 'MERCH_TABLE_COL_WIDTHS_V2';
+
+interface ColumnDef {
+  fieldId: string;
+  key: SortField | null;
+  label: string;
+  defaultWidth: number;
+  minWidth: number;
+  align?: 'left' | 'center';
+  stickyRight?: boolean;
+}
+
+const TABLE_COLUMNS: ColumnDef[] = [
+  { fieldId: 'id', key: 'id', label: '编号', defaultWidth: 75, minWidth: 55, align: 'left' },
+  { fieldId: 'series', key: 'series', label: '作品/系列', defaultWidth: 140, minWidth: 85, align: 'left' },
+  { fieldId: 'character', key: 'character', label: '角色', defaultWidth: 120, minWidth: 75, align: 'left' },
+  { fieldId: 'style', key: null, label: '款式规格', defaultWidth: 190, minWidth: 100, align: 'left' },
+  { fieldId: 'shelfLocation', key: 'shelfLocation', label: '货架位置', defaultWidth: 95, minWidth: 75, align: 'left' },
+  { fieldId: 'isListed', key: null, label: '上架状态', defaultWidth: 95, minWidth: 75, align: 'left' },
+  { fieldId: 'price', key: 'price', label: '单价', defaultWidth: 90, minWidth: 70, align: 'left' },
+  { fieldId: 'stock', key: 'stock', label: '库存', defaultWidth: 80, minWidth: 65, align: 'left' },
+  { fieldId: 'sold', key: 'sold', label: '已出', defaultWidth: 80, minWidth: 65, align: 'left' },
+  { fieldId: 'revenue', key: 'revenue', label: '销售总额', defaultWidth: 105, minWidth: 80, align: 'left' },
+  { fieldId: 'actions', key: null, label: '操作', defaultWidth: 185, minWidth: 175, align: 'center', stickyRight: true }
+];
+
+const DEFAULT_COL_WIDTHS: Record<string, number> = TABLE_COLUMNS.reduce((acc, col) => {
+  acc[col.fieldId] = col.defaultWidth;
+  return acc;
+}, {} as Record<string, number>);
+
 export const App: React.FC = () => {
   // --- State ---
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Table Column Widths & Resizing
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem(COLUMN_WIDTHS_KEY);
+      if (saved) {
+        return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return DEFAULT_COL_WIDTHS;
+  });
+
+  const [activeResizingCol, setActiveResizingCol] = useState<string | null>(null);
+
+  const handleResizeStart = (e: React.MouseEvent, fieldId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const startX = e.clientX;
+    const initialWidth = colWidths[fieldId] || DEFAULT_COL_WIDTHS[fieldId] || 100;
+    const colDef = TABLE_COLUMNS.find(c => c.fieldId === fieldId);
+    const minW = colDef?.minWidth || 60;
+    setActiveResizingCol(fieldId);
+
+    const onMouseMove = (moveEvent: MouseEvent) => {
+      const diff = moveEvent.clientX - startX;
+      const newWidth = Math.max(minW, initialWidth + diff);
+      setColWidths(prev => ({
+        ...prev,
+        [fieldId]: newWidth
+      }));
+    };
+
+    const onMouseUp = () => {
+      setActiveResizingCol(null);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      setColWidths(curr => {
+        try {
+          localStorage.setItem(COLUMN_WIDTHS_KEY, JSON.stringify(curr));
+        } catch (err) {}
+        return curr;
+      });
+    };
+
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleResetColWidths = () => {
+    setColWidths(DEFAULT_COL_WIDTHS);
+    try {
+      localStorage.removeItem(COLUMN_WIDTHS_KEY);
+    } catch (e) {}
+    showToast('已重置所有列宽为默认值', false);
+  };
+
+  const totalTableWidth = useMemo(() => {
+    const colsTotal = TABLE_COLUMNS.reduce((sum, col) => sum + (colWidths[col.fieldId] || col.defaultWidth), 0);
+    return 48 + colsTotal; // 48px checkbox column
+  }, [colWidths]);
   
   // Cloud & Loading State
   const [isLoading, setIsLoading] = useState(true);
@@ -322,7 +420,8 @@ export const App: React.FC = () => {
           const parsed = JSON.parse(savedSettings);
           setSettlementSettings({
             hb3Rate: typeof parsed.hb3Rate === 'number' ? parsed.hb3Rate : DEFAULT_SETTLEMENT.hb3Rate,
-            hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate
+            hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate,
+            payouts: Array.isArray(parsed.payouts) ? parsed.payouts : []
           });
         } catch (e) {
           console.error("Failed to parse settlement settings", e);
@@ -350,7 +449,8 @@ export const App: React.FC = () => {
               const parsed = JSON.parse(savedSettings);
               settingsToUpload = {
                 hb3Rate: typeof parsed.hb3Rate === 'number' ? parsed.hb3Rate : DEFAULT_SETTLEMENT.hb3Rate,
-                hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate
+                hc3Rate: typeof parsed.hc3Rate === 'number' ? parsed.hc3Rate : DEFAULT_SETTLEMENT.hc3Rate,
+                payouts: Array.isArray(parsed.payouts) ? parsed.payouts : []
               };
             } catch {}
           }
@@ -532,6 +632,11 @@ export const App: React.FC = () => {
     const hc3Settlement = hc3Sales * (settlementSettings.hc3Rate ?? 0.80);
     const settlementAmount = hb3Settlement + hc3Settlement;
 
+    // Manual Payouts & Pending Settlement calculation (= 总数 - 已结算金额)
+    const payoutsList = Array.isArray(settlementSettings.payouts) ? settlementSettings.payouts : [];
+    const totalPaidAmount = payoutsList.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    const pendingSettlementAmount = Math.max(0, settlementAmount - totalPaidAmount);
+
     return { 
       totalItems, 
       totalStock, 
@@ -545,7 +650,10 @@ export const App: React.FC = () => {
       otherSales,
       hb3Settlement,
       hc3Settlement,
-      settlementAmount 
+      settlementAmount,
+      totalPaidAmount,
+      pendingSettlementAmount,
+      payoutsCount: payoutsList.length
     };
   }, [filteredItems, settlementSettings]);
 
@@ -1023,149 +1131,7 @@ export const App: React.FC = () => {
     e.target.value = '';
   };
 
-  // --- Settlement Ratio Settings Modal ---
-  const SettlementModal = () => {
-    const [hb3Input, setHb3Input] = useState((settlementSettings.hb3Rate * 100).toString());
-    const [hc3Input, setHc3Input] = useState((settlementSettings.hc3Rate * 100).toString());
-
-    const handleSave = () => {
-      const hb3Num = parseFloat(hb3Input);
-      const hc3Num = parseFloat(hc3Input);
-      
-      const newHb3Rate = isNaN(hb3Num) ? DEFAULT_SETTLEMENT.hb3Rate : Math.max(0, hb3Num) / 100;
-      const newHc3Rate = isNaN(hc3Num) ? DEFAULT_SETTLEMENT.hc3Rate : Math.max(0, hc3Num) / 100;
-
-      updateSettlementSettings({
-        hb3Rate: newHb3Rate,
-        hc3Rate: newHc3Rate
-      });
-      setIsSettlementModalOpen(false);
-    };
-
-    const handleReset = () => {
-      setHb3Input((DEFAULT_SETTLEMENT.hb3Rate * 100).toString());
-      setHc3Input((DEFAULT_SETTLEMENT.hc3Rate * 100).toString());
-      updateSettlementSettings(DEFAULT_SETTLEMENT);
-    };
-
-    return (
-      <div className="fixed inset-0 z-[75] flex items-center justify-center p-4">
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsSettlementModalOpen(false)} />
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative z-10 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          <div className="flex justify-between items-center p-5 border-b bg-slate-50/50">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-[#EAF3F8] text-[#2D6994] rounded-xl">
-                <Calculator className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-[#2C3842]">结算金额比例设置</h3>
-                <p className="text-xs text-[#697A88]">自定义不同货架的销售提成与结算比例</p>
-              </div>
-            </div>
-            <button onClick={() => setIsSettlementModalOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-slate-100">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="p-6 space-y-5">
-            <div className="bg-[#EAF3F8] p-3.5 rounded-xl border border-[#72B8D6]/30 text-xs text-[#2D6994] leading-relaxed">
-              <span className="font-semibold block mb-1">当前计算公式：</span>
-              结算金额 = 货架 HB3 销售额 × <b>{((settlementSettings.hb3Rate || 0.92) * 100).toFixed(0)}%</b> + 货架 HC3 销售额 × <b>{((settlementSettings.hc3Rate || 0.8) * 100).toFixed(0)}%</b>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-[#2C3842] mb-1 flex justify-between items-center">
-                  <span>HB3 货架结算比例 (%)</span>
-                  <span className="text-xs text-[#2D6994] font-medium">默认 92% (乘数 0.92)</span>
-                </label>
-                <div className="relative">
-                  <input 
-                    type="number" 
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    value={hb3Input}
-                    onChange={(e) => setHb3Input(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] font-medium text-[#2C3842]"
-                    placeholder="92"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-[#2C3842] mb-1 flex justify-between items-center">
-                  <span>HC3 货架结算比例 (%)</span>
-                  <span className="text-xs text-[#2D6994] font-medium">默认 80% (乘数 0.80)</span>
-                </label>
-                <div className="relative">
-                  <input 
-                    type="number" 
-                    step="0.1"
-                    min="0"
-                    max="100"
-                    value={hc3Input}
-                    onChange={(e) => setHc3Input(e.target.value)}
-                    className="w-full px-3.5 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#2D6994] focus:border-[#2D6994] font-medium text-[#2C3842]"
-                    placeholder="80"
-                  />
-                  <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 font-bold text-sm">%</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-200/80 pt-4 space-y-2 text-xs text-[#697A88]">
-              <div className="flex justify-between">
-                <span>HB3 当前总销售额：</span>
-                <span className="font-semibold text-[#2C3842]">¥{stats.hb3Sales.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>HC3 当前总销售额：</span>
-                <span className="font-semibold text-[#2C3842]">¥{stats.hc3Sales.toFixed(2)}</span>
-              </div>
-              {stats.otherSales > 0 && (
-                <div className="flex justify-between text-[#D87048]">
-                  <span>其他/未设置货架销售额 (不参与结算)：</span>
-                  <span className="font-semibold">¥{stats.otherSales.toFixed(2)}</span>
-                </div>
-              )}
-              <div className="flex justify-between text-sm font-bold text-[#2D6994] pt-1 border-t border-slate-200">
-                <span>预计结算总额：</span>
-                <span>¥{stats.settlementAmount.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="p-4 bg-slate-50 border-t flex justify-between gap-3">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-4 py-2 text-xs font-medium text-[#697A88] hover:text-[#2C3842] hover:bg-slate-200/60 rounded-lg transition-colors"
-            >
-              恢复默认 (92% / 80%)
-            </button>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setIsSettlementModalOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-[#2C3842] bg-white border border-gray-300 rounded-lg hover:bg-slate-50"
-              >
-                取消
-              </button>
-              <button
-                type="button"
-                onClick={handleSave}
-                className="px-5 py-2 text-sm font-medium text-white bg-[#2D6994] rounded-lg hover:bg-[#235375] shadow-sm"
-              >
-                保存设置
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // --- SettlementModal is imported from ./components/SettlementModal ---
 
   // --- Sales Detail Modal Component ---
   const SalesDetailModal = () => {
@@ -1520,7 +1486,14 @@ export const App: React.FC = () => {
       {/* Modals */}
       {isBackupModalOpen && <BackupModal />}
       {isSalesDetailModalOpen && <SalesDetailModal />}
-      {isSettlementModalOpen && <SettlementModal />}
+      <SettlementModal 
+        isOpen={isSettlementModalOpen}
+        onClose={() => setIsSettlementModalOpen(false)}
+        settlementSettings={settlementSettings}
+        onUpdateSettings={updateSettlementSettings}
+        stats={stats}
+        onToast={(msg) => showToast(msg, false)}
+      />
       <CloudSettingsModal 
         isOpen={isCloudModalOpen}
         onClose={() => setIsCloudModalOpen(false)}
@@ -1735,7 +1708,7 @@ export const App: React.FC = () => {
             </div>
             
             <div className="text-[11px] text-[#697A88] text-center border-t border-slate-100 pt-3">
-              周边库存管理表 · HB3/HC3 结算版
+              周边库存管理表
             </div>
           </div>
         </div>
@@ -1752,9 +1725,6 @@ export const App: React.FC = () => {
               <h1 className="text-base md:text-lg font-bold text-white leading-tight truncate tracking-wide">
                 周边库存管理表
               </h1>
-              <p className="text-[11px] text-[#72B8D6] hidden sm:block font-medium">
-                支持货架管理 · HB3/HC3 自定义结算 · 打签名称导出
-              </p>
             </div>
           </div>
           
@@ -2021,19 +1991,41 @@ export const App: React.FC = () => {
             colorClass="bg-[#2D6994] text-[#2D6994]" 
             onClick={() => setIsSalesDetailModalOpen(true)}
           />
-          {/* Settlement Card */}
+          {/* Settlement Card: Total & Pending Settlement */}
           <StatsCard 
             title="结算金额" 
-            value={`¥${stats.settlementAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} 
-            subValue={`HB3(${((settlementSettings.hb3Rate || 0.92) * 100).toFixed(0)}%): ¥${stats.hb3Settlement.toFixed(1)} | HC3(${((settlementSettings.hc3Rate || 0.8) * 100).toFixed(0)}%): ¥${stats.hc3Settlement.toFixed(1)}`}
+            value={
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-xl sm:text-2xl font-bold text-[#2C3842]" title="总结算金额">
+                  ¥{stats.settlementAmount.toFixed(1)}
+                </span>
+                <span 
+                  className={`text-xs px-2 py-0.5 rounded-full font-bold border ${
+                    stats.pendingSettlementAmount > 0 
+                      ? 'bg-[#FAECE6] text-[#D87048] border-[#F5B8A9]' 
+                      : 'bg-[#EAF3F8] text-[#2D6994] border-[#72B8D6]/40'
+                  }`}
+                  title="待结算金额 = 总结算金额 - 已结算金额"
+                >
+                  待结: ¥{stats.pendingSettlementAmount.toFixed(1)}
+                </span>
+              </div>
+            } 
+            subValue={
+              <div className="flex items-center gap-1.5 text-xs text-[#697A88] truncate">
+                <span>已结: ¥{stats.totalPaidAmount.toFixed(1)}</span>
+                <span>·</span>
+                <span className="text-[#2D6994] font-semibold hover:underline">点击录入/查明细</span>
+              </div>
+            }
             icon={Calculator} 
-            colorClass="bg-emerald-500 text-emerald-700" 
+            colorClass="bg-[#2D6994] text-[#2D6994]" 
             onClick={() => setIsSettlementModalOpen(true)}
             actionButton={
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsSettlementModalOpen(true); }}
                 className="p-1 text-[#2D6994] hover:bg-[#EAF3F8] rounded-lg"
-                title="调整结算比例"
+                title="已结核销明细与比例设置"
               >
                 <Settings2 className="w-4 h-4" />
               </button>
@@ -2416,9 +2408,10 @@ export const App: React.FC = () => {
                 />
                 <span>全选本页 ({filteredItems.length} 项)</span>
               </label>
-              <span className="text-[#2D6994] font-bold">
-                结算总额: ¥{stats.settlementAmount.toFixed(1)}
-              </span>
+              <div className="text-right text-[11px]">
+                <span className="text-[#2D6994] font-bold">总结: ¥{stats.settlementAmount.toFixed(1)}</span>
+                <span className="text-[#D87048] font-bold ml-1.5 bg-[#FEF6EE] px-1.5 py-0.5 rounded border border-[#F9DBAF]">待结: ¥{stats.pendingSettlementAmount.toFixed(1)}</span>
+              </div>
             </div>
           )}
 
@@ -2458,14 +2451,14 @@ export const App: React.FC = () => {
                     {/* Shelf badge */}
                     <span className={`px-2 py-0.5 rounded text-[11px] font-bold ${
                       item.shelfLocation === 'HB3' 
-                        ? 'bg-amber-100 text-amber-800' 
-                        : (item.shelfLocation === 'HC3' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-[#697A88]')
+                        ? 'bg-[#EAF3F8] text-[#2D6994] border border-[#72B8D6]/40' 
+                        : (item.shelfLocation === 'HC3' ? 'bg-[#FAECE6] text-[#D87048] border border-[#F5B8A9]/60' : 'bg-slate-100 text-[#697A88]')
                     }`}>
                       {item.shelfLocation || '未设货架'}
                     </span>
                     {/* Listed status badge */}
                     {item.isListed ? (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-semibold flex items-center gap-0.5">
+                      <span className="px-1.5 py-0.5 rounded bg-[#E8F5FA] text-[#2D6994] border border-[#72B8D6]/30 text-[10px] font-semibold flex items-center gap-0.5">
                         <CheckCircle2 className="w-2.5 h-2.5" /> 已上架
                       </span>
                     ) : (
@@ -2506,27 +2499,37 @@ export const App: React.FC = () => {
                 </div>
               )}
 
-              <div className="mt-3 flex gap-2">
+              <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
                 <button 
                   onClick={(e) => handleQuickSell(e, item.id)}
                   disabled={item.stock <= 0}
-                  className="flex-1 bg-[#EAF3F8] text-[#2D6994] py-1.5 rounded-lg text-xs font-bold hover:bg-[#d9ecf5] flex justify-center items-center disabled:opacity-40 transition-colors"
+                  className="flex-1 bg-[#EAF3F8] text-[#2D6994] py-2 px-3 rounded-xl text-xs font-bold hover:bg-[#d9ecf5] flex justify-center items-center disabled:opacity-40 transition-colors shadow-xs"
                 >
-                  <ShoppingCart className="w-3.5 h-3.5 mr-1 pointer-events-none" /> 售出 +1
+                  <ShoppingCart className="w-3.5 h-3.5 mr-1.5 pointer-events-none" /> 售出 +1
                 </button>
-                <button 
-                  onClick={(e) => handleDuplicate(e, item)}
-                  className="bg-slate-100 text-[#2C3842] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-200 flex justify-center items-center transition-colors"
-                  title="复制为新商品"
-                >
-                  <Copy className="w-3.5 h-3.5 mr-1 pointer-events-none" /> 复制
-                </button>
-                <button 
-                  onClick={(e) => handleDelete(e, item.id)}
-                  className="bg-[#FDF1EC] text-[#D87048] px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-[#fae2d9] flex justify-center items-center transition-colors"
-                >
-                  <Trash2 className="w-3.5 h-3.5 pointer-events-none" />
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button 
+                    onClick={(e) => handleEdit(e, item)}
+                    className="bg-[#EAF3F8] text-[#2D6994] px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#d9ecf5] flex items-center gap-1 transition-colors"
+                    title="编辑商品"
+                  >
+                    <Edit2 className="w-3.5 h-3.5 pointer-events-none" /> 编辑
+                  </button>
+                  <button 
+                    onClick={(e) => handleDuplicate(e, item)}
+                    className="bg-slate-100 text-[#2C3842] px-2 py-2 rounded-xl text-xs font-semibold hover:bg-slate-200 flex items-center transition-colors"
+                    title="复制为新商品"
+                  >
+                    <Copy className="w-3.5 h-3.5 pointer-events-none" />
+                  </button>
+                  <button 
+                    onClick={(e) => handleDelete(e, item.id)}
+                    className="bg-[#FDF1EC] text-[#D87048] px-2.5 py-2 rounded-xl text-xs font-semibold hover:bg-[#FAECE6] flex items-center gap-1 transition-colors"
+                    title="删除商品"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 pointer-events-none" /> 删除
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -2550,13 +2553,22 @@ export const App: React.FC = () => {
           )}
         </div>
 
-        {/* Desktop: Table View */}
+        {/* Desktop: Table View with Draggable Column Resizing */}
         <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200/80 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-[1080px] w-full divide-y divide-slate-200">
+            <table 
+              className="w-full divide-y divide-slate-200 border-separate border-spacing-0"
+              style={{ minWidth: `${totalTableWidth}px`, tableLayout: 'fixed' }}
+            >
+              <colgroup>
+                <col style={{ width: '48px' }} />
+                {TABLE_COLUMNS.map(col => (
+                  <col key={col.fieldId} style={{ width: `${colWidths[col.fieldId] || col.defaultWidth}px` }} />
+                ))}
+              </colgroup>
               <thead className="bg-[#F8FAFC]">
                 <tr>
-                  <th className="px-4 py-3.5 w-12 min-w-[48px]">
+                  <th className="px-4 py-3.5 w-12 min-w-[48px] bg-[#F8FAFC] border-b border-slate-200">
                     <input 
                       type="checkbox" 
                       className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
@@ -2564,42 +2576,60 @@ export const App: React.FC = () => {
                       onChange={toggleSelectAll}
                     />
                   </th>
-                  {[
-                    { key: 'id', label: '编号', thClass: 'w-20 min-w-[70px]' },
-                    { key: 'series', label: '作品/系列', thClass: 'min-w-[110px]' }, 
-                    { key: 'character', label: '角色', thClass: 'min-w-[90px]' },
-                    { key: 'style', label: '款式规格', thClass: 'min-w-[160px]' },
-                    { key: 'shelfLocation', label: '货架位置', thClass: 'w-24 min-w-[85px]' },
-                    { key: null, label: '上架状态', thClass: 'w-24 min-w-[85px]' },
-                    { key: 'price', label: '单价', thClass: 'w-24 min-w-[80px]' },
-                    { key: 'stock', label: '库存', thClass: 'w-20 min-w-[70px]' },
-                    { key: 'sold', label: '已出', thClass: 'w-20 min-w-[70px]' },
-                    { key: 'revenue', label: '销售总额', thClass: 'w-28 min-w-[90px]' },
-                    { key: null, label: '操作', thClass: 'w-40 min-w-[155px] text-center' }
-                  ].map((col, idx) => (
-                    <th 
-                      key={idx}
-                      className={`px-3.5 py-3.5 text-xs font-bold text-[#697A88] uppercase tracking-wider ${col.key ? 'cursor-pointer hover:bg-slate-100' : ''} transition-colors whitespace-nowrap ${col.thClass || 'text-left'}`}
-                      onClick={() => col.key && handleSort(col.key as SortField)}
-                    >
-                      <div className={`flex items-center gap-1 ${col.label === '操作' ? 'justify-center' : ''}`}>
-                        {col.label}
-                        {col.key && (
-                          sortField === col.key ? (
-                            sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-[#2D6994]" /> : <ChevronDown className="w-3.5 h-3.5 text-[#2D6994]" />
-                          ) : (
-                            <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />
-                          )
-                        )}
-                      </div>
-                    </th>
-                  ))}
+                  {TABLE_COLUMNS.map((col) => {
+                    const isResizingThis = activeResizingCol === col.fieldId;
+                    const isSticky = col.stickyRight;
+
+                    return (
+                      <th 
+                        key={col.fieldId}
+                        className={`px-3.5 py-3.5 text-xs font-bold text-[#697A88] uppercase tracking-wider relative select-none transition-colors border-b border-slate-200 ${
+                          col.key ? 'cursor-pointer hover:bg-slate-100/90' : ''
+                        } ${
+                          isSticky 
+                            ? 'sticky right-0 bg-[#F8FAFC] z-20 border-l border-slate-200/90 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)]' 
+                            : 'bg-[#F8FAFC]'
+                        } ${col.align === 'center' ? 'text-center' : 'text-left'}`}
+                        style={{ width: `${colWidths[col.fieldId] || col.defaultWidth}px` }}
+                        onClick={() => col.key && handleSort(col.key)}
+                      >
+                        <div className={`flex items-center gap-1 overflow-hidden ${col.align === 'center' ? 'justify-center' : ''}`}>
+                          <span className="truncate">{col.label}</span>
+                          {col.key && (
+                            sortField === col.key ? (
+                              sortOrder === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-[#2D6994] shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-[#2D6994] shrink-0" />
+                            ) : (
+                              <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 shrink-0" />
+                            )
+                          )}
+                        </div>
+
+                        {/* Drag Handle to Resize Column */}
+                        <div 
+                          onMouseDown={(e) => handleResizeStart(e, col.fieldId)}
+                          onClick={(e) => e.stopPropagation()}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                            setColWidths(prev => ({ ...prev, [col.fieldId]: col.defaultWidth }));
+                          }}
+                          title="按住左右拖动调整此列宽 (双击恢复默认)"
+                          className={`absolute right-0 top-0 bottom-0 w-3 cursor-col-resize z-30 flex items-center justify-center group/handle transition-colors ${
+                            isResizingThis ? 'bg-[#2D6994]/20' : 'hover:bg-[#2D6994]/15'
+                          }`}
+                        >
+                          <div className={`w-[2px] h-3.5 rounded-full transition-colors ${
+                            isResizingThis ? 'bg-[#2D6994]' : 'bg-slate-300 group-hover/handle:bg-[#2D6994]'
+                          }`} />
+                        </div>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-100">
                 {filteredItems.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-14 text-center text-[#697A88]">
+                    <td colSpan={12} className="px-6 py-14 text-center text-[#697A88]">
                       <div className="flex flex-col items-center">
                         <Package className="w-12 h-12 text-slate-300 mb-2" />
                         <p className="font-medium text-sm text-[#2C3842]">未找到匹配的商品</p>
@@ -2615,7 +2645,7 @@ export const App: React.FC = () => {
                         selectedIds.has(item.id) ? 'bg-[#EAF3F8]/40' : 'hover:bg-slate-50/70'
                       }`}
                     >
-                      <td className="px-4 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3.5 whitespace-nowrap">
                         <input 
                           type="checkbox" 
                           className="h-4 w-4 text-[#2D6994] focus:ring-[#2D6994] border-gray-300 rounded cursor-pointer accent-[#2D6994]"
@@ -2624,16 +2654,16 @@ export const App: React.FC = () => {
                           onClick={(e) => e.stopPropagation()}
                         />
                       </td>
-                      <td className="px-3.5 py-4 whitespace-nowrap text-xs font-bold text-[#697A88]">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-xs font-bold text-[#697A88]">
                         #{item.id}
                       </td>
-                      <td className="px-3.5 py-4 whitespace-nowrap text-sm font-semibold text-[#2C3842]">
-                        {item.series}
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm font-semibold text-[#2C3842]">
+                        <span className="truncate block" title={item.series}>{item.series}</span>
                       </td>
-                      <td className="px-3.5 py-4 whitespace-nowrap text-sm text-[#2C3842]">
-                        {item.character}
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#2C3842]">
+                        <span className="truncate block" title={item.character}>{item.character}</span>
                       </td>
-                      <td className="px-3.5 py-4 text-sm text-[#2C3842] max-w-[200px]">
+                      <td className="px-3.5 py-3.5 text-sm text-[#2C3842]">
                         <div className="truncate font-medium" title={item.style}>{item.style || '-'}</div>
                         {item.remark && (
                           <div className="text-[11px] text-[#697A88] italic truncate mt-0.5" title={item.remark}>
@@ -2642,19 +2672,19 @@ export const App: React.FC = () => {
                         )}
                       </td>
                       {/* Shelf Location Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-xs">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-xs">
                         <span className={`px-2.5 py-1 rounded-md font-bold text-xs ${
                           item.shelfLocation === 'HB3' 
-                            ? 'bg-amber-100 text-amber-800' 
-                            : (item.shelfLocation === 'HC3' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-[#697A88]')
+                            ? 'bg-[#EAF3F8] text-[#2D6994] border border-[#72B8D6]/40' 
+                            : (item.shelfLocation === 'HC3' ? 'bg-[#FAECE6] text-[#D87048] border border-[#F5B8A9]/60' : 'bg-slate-100 text-[#697A88]')
                         }`}>
                           {item.shelfLocation || '未设'}
                         </span>
                       </td>
-                      {/* Listing Status Column (是否已上架) */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-xs">
+                      {/* Listing Status Column */}
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-xs">
                         {item.isListed ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-[#E8F5FA] text-[#2D6994] border border-[#72B8D6]/30">
                             <CheckCircle2 className="w-3 h-3 mr-1" /> 已上架
                           </span>
                         ) : (
@@ -2664,54 +2694,59 @@ export const App: React.FC = () => {
                         )}
                       </td>
                       {/* Price Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-sm font-bold text-[#2C3842]">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm font-bold text-[#2C3842]">
                         ¥{item.price.toFixed(2)}
                       </td>
                       {/* Stock Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap">
                         <span className={`px-2 py-0.5 inline-flex text-xs font-bold rounded-md ${
-                          item.stock > 0 ? 'bg-emerald-50 text-emerald-800 border border-emerald-200/60' : 'bg-[#FDF1EC] text-[#D87048] border border-[#D87048]/30'
+                          item.stock > 0 ? 'bg-[#E8F5FA] text-[#2D6994] border border-[#72B8D6]/30' : 'bg-[#FAECE6] text-[#D87048] border border-[#F5B8A9]'
                         }`}>
                           {item.stock > 0 ? item.stock : '售罄'}
                         </span>
                       </td>
                       {/* Sold Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-sm text-[#2C3842] font-medium">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#2C3842] font-medium">
                         {item.sold}
                       </td>
                       {/* Total Sales Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-sm text-[#2D6994] font-bold">
+                      <td className="px-3.5 py-3.5 whitespace-nowrap text-sm text-[#2D6994] font-bold">
                         ¥{(item.sold * item.price).toFixed(2)}
                       </td>
-                      {/* Actions Column */}
-                      <td className="px-3.5 py-4 whitespace-nowrap text-center text-sm font-medium w-40 min-w-[155px]">
-                        <div className="flex items-center justify-center gap-1.5 flex-nowrap min-w-[145px]">
+                      {/* Actions Column (Sticky Right) */}
+                      <td 
+                        className={`px-3 py-3.5 whitespace-nowrap text-center text-sm font-medium sticky right-0 z-10 border-l border-slate-200/90 shadow-[-6px_0_10px_-4px_rgba(0,0,0,0.06)] ${
+                          selectedIds.has(item.id) ? 'bg-[#f0f6fa]' : 'bg-white group-hover:bg-slate-50'
+                        }`}
+                        style={{ width: `${colWidths['actions'] || 185}px` }}
+                      >
+                        <div className="flex items-center justify-center gap-1.5 flex-nowrap w-full">
                           <button 
                             onClick={(e) => handleQuickSell(e, item.id)}
                             disabled={item.stock <= 0}
                             title="快速售出 (+1 已出, -1 库存)"
-                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
                           >
                             <ShoppingCart className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleDuplicate(e, item)}
                             title="复制为新商品"
-                            className="p-1.5 text-[#2C3842] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex-shrink-0"
+                            className="p-1.5 text-[#2C3842] bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors shrink-0"
                           >
                             <Copy className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleEdit(e, item)}
-                            title="编辑"
-                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg transition-colors flex-shrink-0"
+                            title="编辑商品"
+                            className="p-1.5 text-[#2D6994] bg-[#EAF3F8] hover:bg-[#d9ecf5] rounded-lg transition-colors shrink-0"
                           >
                             <Edit2 className="w-4 h-4 pointer-events-none" />
                           </button>
                           <button 
                             onClick={(e) => handleDelete(e, item.id)}
-                            title="删除"
-                            className="p-1.5 text-[#D87048] bg-[#FDF1EC] hover:bg-[#fae2d9] rounded-lg transition-colors flex-shrink-0"
+                            title="删除商品"
+                            className="p-1.5 text-[#D87048] bg-[#FDF1EC] hover:bg-[#FAECE6] rounded-lg transition-colors shrink-0"
                           >
                             <Trash2 className="w-4 h-4 pointer-events-none" />
                           </button>
@@ -2724,11 +2759,26 @@ export const App: React.FC = () => {
             </table>
           </div>
           <div className="bg-[#F8FAFC] px-6 py-3 border-t border-slate-200 text-xs text-[#697A88] flex flex-wrap justify-between items-center gap-2">
-            <span>显示 {filteredItems.length} 项商品 (共 {items.length} 条记录)</span>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <span>显示 {filteredItems.length} 项商品 (共 {items.length} 条记录)</span>
+              <button
+                onClick={handleResetColWidths}
+                className="text-[11px] text-[#2D6994] hover:underline flex items-center gap-1 hover:text-[#235375]"
+                title="重置所有表格列宽为默认值"
+              >
+                <RotateCcw className="w-3 h-3" /> 重置列宽
+              </button>
+            </div>
+            <div className="flex items-center gap-4 flex-wrap">
               <span>总销售额: <b className="text-[#2C3842] font-bold">¥{stats.actualRevenue.toLocaleString()}</b></span>
               <span className="text-[#2D6994]">
-                结算金额 (HB3×{(settlementSettings.hb3Rate * 100).toFixed(0)}% + HC3×{(settlementSettings.hc3Rate * 100).toFixed(0)}%): <b className="font-bold text-sm">¥{stats.settlementAmount.toFixed(2)}</b>
+                总结算: <b className="font-bold">¥{stats.settlementAmount.toFixed(1)}</b>
+              </span>
+              <span className="text-[#2D6994]">
+                已结算: <b className="font-bold">¥{stats.totalPaidAmount.toFixed(1)}</b>
+              </span>
+              <span className="text-[#D87048] bg-[#FAECE6] px-2.5 py-0.5 rounded-md border border-[#F5B8A9] font-bold">
+                待结算: ¥{stats.pendingSettlementAmount.toFixed(1)}
               </span>
             </div>
           </div>

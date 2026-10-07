@@ -328,21 +328,46 @@ export async function fetchSettlementSettingsCloud(): Promise<SettlementSettings
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase 尚未配置');
 
+  // Try fetching with payouts column first
   const { data, error } = await sb
     .from('settlement_settings')
-    .select('hb3_rate, hc3_rate')
+    .select('hb3_rate, hc3_rate, payouts')
     .eq('id', 'default')
     .maybeSingle();
 
   if (error) {
+    // If column payouts does not exist in schema yet, fallback to rates only
+    if (error.code === '42703' || String(error.message || '').toLowerCase().includes('payouts')) {
+      const { data: fallbackData, error: fallbackError } = await sb
+        .from('settlement_settings')
+        .select('hb3_rate, hc3_rate')
+        .eq('id', 'default')
+        .maybeSingle();
+
+      if (fallbackError) {
+        console.error('[Supabase] fetchSettlementSettings error:', fallbackError);
+        throw fallbackError;
+      }
+      if (fallbackData) {
+        return {
+          hb3Rate: Number(fallbackData.hb3_rate) ?? 0.92,
+          hc3Rate: Number(fallbackData.hc3_rate) ?? 0.80,
+          payouts: []
+        };
+      }
+      return null;
+    }
+
     console.error('[Supabase] fetchSettlementSettings error:', error);
     throw error;
   }
 
   if (data) {
+    const rawPayouts = Array.isArray(data.payouts) ? data.payouts : [];
     return {
       hb3Rate: Number(data.hb3_rate) ?? 0.92,
-      hc3Rate: Number(data.hc3_rate) ?? 0.80
+      hc3Rate: Number(data.hc3_rate) ?? 0.80,
+      payouts: rawPayouts
     };
   }
 
@@ -356,16 +381,37 @@ export async function saveSettlementSettingsCloud(settings: SettlementSettings):
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase 尚未配置');
 
+  const payload: any = {
+    id: 'default',
+    hb3_rate: settings.hb3Rate,
+    hc3_rate: settings.hc3Rate,
+    payouts: settings.payouts || [],
+    updated_at: new Date().toISOString()
+  };
+
   const { error } = await sb
     .from('settlement_settings')
-    .upsert({
-      id: 'default',
-      hb3_rate: settings.hb3Rate,
-      hc3_rate: settings.hc3Rate,
-      updated_at: new Date().toISOString()
-    }, { onConflict: 'id' });
+    .upsert(payload, { onConflict: 'id' });
 
   if (error) {
+    // If payouts column doesn't exist, fallback to saving without payouts
+    if (error.code === '42703' || String(error.message || '').toLowerCase().includes('payouts')) {
+      const { error: fallbackError } = await sb
+        .from('settlement_settings')
+        .upsert({
+          id: 'default',
+          hb3_rate: settings.hb3Rate,
+          hc3_rate: settings.hc3Rate,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+
+      if (fallbackError) {
+        console.error('[Supabase] saveSettlementSettings fallback error:', fallbackError);
+        throw fallbackError;
+      }
+      return;
+    }
+
     console.error('[Supabase] saveSettlementSettings error:', error);
     throw error;
   }
@@ -398,7 +444,8 @@ export function subscribeToCloudChanges(
           if (payload?.new) {
             onSettlementChange({
               hb3Rate: Number(payload.new.hb3_rate) ?? 0.92,
-              hc3Rate: Number(payload.new.hc3_rate) ?? 0.80
+              hc3Rate: Number(payload.new.hc3_rate) ?? 0.80,
+              payouts: Array.isArray(payload.new.payouts) ? payload.new.payouts : []
             });
           } else {
             onInventoryChange();

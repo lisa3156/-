@@ -25,17 +25,21 @@ CREATE TABLE IF NOT EXISTS public.inventory (
 CREATE INDEX IF NOT EXISTS idx_inventory_created_at ON public.inventory (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_inventory_shelf ON public.inventory (shelf_location);
 
--- 2. 创建 settlement_settings (结算比例设置表)
+-- 2. 创建 settlement_settings (结算比例与核销记录表)
 CREATE TABLE IF NOT EXISTS public.settlement_settings (
   id TEXT PRIMARY KEY DEFAULT 'default',           -- 主键固定为 default
   hb3_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.92,   -- HB3货架提成比例 (默认 92%)
   hc3_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.80,   -- HC3货架提成比例 (默认 80%)
+  payouts JSONB NOT NULL DEFAULT '[]'::jsonb,      -- 已结算历史明细列表 [{id, month, amount, remark, createdAt}]
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()    -- 更新时间
 );
 
+-- 若旧版数据库已存在该表，平滑添加 payouts 列
+ALTER TABLE public.settlement_settings ADD COLUMN IF NOT EXISTS payouts JSONB DEFAULT '[]'::jsonb;
+
 -- 插入默认结算比例初始行
-INSERT INTO public.settlement_settings (id, hb3_rate, hc3_rate)
-VALUES ('default', 0.92, 0.80)
+INSERT INTO public.settlement_settings (id, hb3_rate, hc3_rate, payouts)
+VALUES ('default', 0.92, 0.80, '[]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 -- ====================================================================

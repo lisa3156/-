@@ -117,11 +117,14 @@ CREATE TABLE IF NOT EXISTS public.settlement_settings (
   id TEXT PRIMARY KEY DEFAULT 'default',
   hb3_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.92,
   hc3_rate NUMERIC(5, 4) NOT NULL DEFAULT 0.80,
+  payouts JSONB NOT NULL DEFAULT '[]'::jsonb,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-INSERT INTO public.settlement_settings (id, hb3_rate, hc3_rate)
-VALUES ('default', 0.92, 0.80)
+ALTER TABLE public.settlement_settings ADD COLUMN IF NOT EXISTS payouts JSONB DEFAULT '[]'::jsonb;
+
+INSERT INTO public.settlement_settings (id, hb3_rate, hc3_rate, payouts)
+VALUES ('default', 0.92, 0.80, '[]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;

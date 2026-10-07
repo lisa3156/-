@@ -25,9 +25,18 @@ export interface UndoAction {
 export type SortField = 'id' | 'stock' | 'sold' | 'price' | 'revenue' | 'shelfLocation' | 'series' | 'character';
 export type SortOrder = 'asc' | 'desc';
 
+export interface SettlementPayout {
+  id: string;          // 唯一ID
+  month: string;       // 结算月份 (如 "2026年2月" 或 "2026-02")
+  amount: number;      // 已结算金额 (¥)
+  remark?: string;     // 备注说明 (选填，如转账流水、经手人)
+  createdAt: number;   // 记录创建时间戳
+}
+
 export interface SettlementSettings {
   hb3Rate: number; // 默认 0.92 (即 92%)
   hc3Rate: number; // 默认 0.80 (即 80%)
+  payouts?: SettlementPayout[]; // 已结算记录列表
 }
 
 // Extend Window interface for SheetJS
