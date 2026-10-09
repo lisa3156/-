@@ -383,20 +383,22 @@ export const App: React.FC = () => {
 
   // Save Settlement Settings on change with Cloud Sync
   const updateSettlementSettings = async (newSettings: SettlementSettings) => {
+    // 1. Immediately save to local state and localStorage to guarantee persistence
+    setSettlementSettings(newSettings);
+    localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(newSettings));
+
+    // 2. If Supabase is configured, sync to cloud asynchronously
     if (isSupabaseConfigured()) {
       setIsSyncing(true);
       try {
         await saveSettlementSettingsCloud(newSettings);
       } catch (err: any) {
+        console.warn('Cloud sync error for settlement settings:', err);
+        showToast(`已保存在本地，云端同步提醒：${err.message || '网络连接异常'}`, true);
+      } finally {
         setIsSyncing(false);
-        alert(`结算比例保存失败，数据尚未同步到云端：${err.message || '请检查网络连接'}`);
-        return;
       }
-      setIsSyncing(false);
     }
-    setSettlementSettings(newSettings);
-    localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(newSettings));
-    showToast('结算比例已更新并同步到云端', false);
   };
 
   // --- Initial Data Loading & Migration Workflow ---
@@ -438,8 +440,26 @@ export const App: React.FC = () => {
       try {
         const remoteSettings = await fetchSettlementSettingsCloud();
         if (remoteSettings) {
-          setSettlementSettings(remoteSettings);
-          localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(remoteSettings));
+          // Merge with local payouts if remote has none so local records are preserved
+          const savedSettings = localStorage.getItem(SETTLEMENT_KEY);
+          let localPayouts: SettlementPayout[] = [];
+          if (savedSettings) {
+            try {
+              const parsed = JSON.parse(savedSettings);
+              if (Array.isArray(parsed?.payouts)) localPayouts = parsed.payouts;
+            } catch {}
+          }
+          const finalPayouts = (Array.isArray(remoteSettings.payouts) && remoteSettings.payouts.length > 0)
+            ? remoteSettings.payouts
+            : (localPayouts.length > 0 ? localPayouts : (remoteSettings.payouts || []));
+
+          const mergedSettings: SettlementSettings = {
+            hb3Rate: remoteSettings.hb3Rate ?? 0.92,
+            hc3Rate: remoteSettings.hc3Rate ?? 0.80,
+            payouts: finalPayouts
+          };
+          setSettlementSettings(mergedSettings);
+          localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(mergedSettings));
         } else {
           // Supabase has no settings row yet; check local storage to migrate
           const savedSettings = localStorage.getItem(SETTLEMENT_KEY);
@@ -526,8 +546,19 @@ export const App: React.FC = () => {
         }
       },
       (newSettings) => {
-        setSettlementSettings(newSettings);
-        localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(newSettings));
+        setSettlementSettings((prev) => {
+          const mergedPayouts = (Array.isArray(newSettings.payouts) && newSettings.payouts.length > 0)
+            ? newSettings.payouts
+            : (prev.payouts && prev.payouts.length > 0 ? prev.payouts : (newSettings.payouts || []));
+          const merged = {
+            ...prev,
+            hb3Rate: newSettings.hb3Rate ?? prev.hb3Rate,
+            hc3Rate: newSettings.hc3Rate ?? prev.hc3Rate,
+            payouts: mergedPayouts
+          };
+          localStorage.setItem(SETTLEMENT_KEY, JSON.stringify(merged));
+          return merged;
+        });
       }
     );
 
@@ -1490,6 +1521,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSettlementModalOpen(false)}
         settlementSettings={settlementSettings}
         onUpdateSettings={updateSettlementSettings}
+        onSave={updateSettlementSettings}
         stats={stats}
         onToast={(msg) => showToast(msg, false)}
       />

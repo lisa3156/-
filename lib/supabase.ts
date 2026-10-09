@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { InventoryItem, SettlementSettings } from '../types';
+import { InventoryItem, SettlementSettings, SettlementPayout } from '../types';
 
 // Retrieve config from Vite env vars, with localStorage fallback for testing/browser configuration
 const env = (import.meta as any).env || {};
@@ -328,6 +328,18 @@ export async function fetchSettlementSettingsCloud(): Promise<SettlementSettings
   const sb = getSupabase();
   if (!sb) throw new Error('Supabase 尚未配置');
 
+  // Retrieve local settlement settings as fallback for payouts so local records are never lost
+  const getLocalPayouts = (): SettlementPayout[] => {
+    try {
+      const raw = localStorage.getItem('merch_settlement_settings_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed?.payouts)) return parsed.payouts;
+      }
+    } catch {}
+    return [];
+  };
+
   // Try fetching with payouts column first
   const { data, error } = await sb
     .from('settlement_settings')
@@ -336,7 +348,7 @@ export async function fetchSettlementSettingsCloud(): Promise<SettlementSettings
     .maybeSingle();
 
   if (error) {
-    // If column payouts does not exist in schema yet, fallback to rates only
+    // If column payouts does not exist in schema yet, fallback to rates only and preserve local payouts
     if (error.code === '42703' || String(error.message || '').toLowerCase().includes('payouts')) {
       const { data: fallbackData, error: fallbackError } = await sb
         .from('settlement_settings')
@@ -352,7 +364,7 @@ export async function fetchSettlementSettingsCloud(): Promise<SettlementSettings
         return {
           hb3Rate: Number(fallbackData.hb3_rate) ?? 0.92,
           hc3Rate: Number(fallbackData.hc3_rate) ?? 0.80,
-          payouts: []
+          payouts: getLocalPayouts()
         };
       }
       return null;
@@ -363,7 +375,7 @@ export async function fetchSettlementSettingsCloud(): Promise<SettlementSettings
   }
 
   if (data) {
-    const rawPayouts = Array.isArray(data.payouts) ? data.payouts : [];
+    const rawPayouts = Array.isArray(data.payouts) ? data.payouts : getLocalPayouts();
     return {
       hb3Rate: Number(data.hb3_rate) ?? 0.92,
       hc3Rate: Number(data.hc3_rate) ?? 0.80,
@@ -385,7 +397,7 @@ export async function saveSettlementSettingsCloud(settings: SettlementSettings):
     id: 'default',
     hb3_rate: settings.hb3Rate,
     hc3_rate: settings.hc3Rate,
-    payouts: settings.payouts || [],
+    payouts: Array.isArray(settings.payouts) ? settings.payouts : [],
     updated_at: new Date().toISOString()
   };
 
@@ -394,7 +406,7 @@ export async function saveSettlementSettingsCloud(settings: SettlementSettings):
     .upsert(payload, { onConflict: 'id' });
 
   if (error) {
-    // If payouts column doesn't exist, fallback to saving without payouts
+    // If payouts column doesn't exist, fallback to saving rates without payouts
     if (error.code === '42703' || String(error.message || '').toLowerCase().includes('payouts')) {
       const { error: fallbackError } = await sb
         .from('settlement_settings')
@@ -442,10 +454,24 @@ export function subscribeToCloudChanges(
         { event: '*', schema: 'public', table: 'settlement_settings' },
         (payload: any) => {
           if (payload?.new) {
+            // If remote doesn't have payouts field, preserve current local payouts!
+            let localPayouts: SettlementPayout[] = [];
+            try {
+              const raw = localStorage.getItem('merch_settlement_settings_v1');
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed?.payouts)) localPayouts = parsed.payouts;
+              }
+            } catch {}
+
+            const targetPayouts = Array.isArray(payload.new.payouts)
+              ? payload.new.payouts
+              : localPayouts;
+
             onSettlementChange({
               hb3Rate: Number(payload.new.hb3_rate) ?? 0.92,
               hc3Rate: Number(payload.new.hc3_rate) ?? 0.80,
-              payouts: Array.isArray(payload.new.payouts) ? payload.new.payouts : []
+              payouts: targetPayouts
             });
           } else {
             onInventoryChange();
